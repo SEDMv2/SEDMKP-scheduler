@@ -44,7 +44,14 @@ else:
 
 session = requests.Session()
 
-headers = {'Authorization': f'token {opts.token}'} if token else None
+if opts.token:
+    headers = {'Authorization': f'token {opts.token}'}
+else:
+    try:
+        token = open('token.txt','r').read()
+        headers = {'Authorization': f'token {token}'}
+    except:
+        headers = None
 method = 'GET'
 
 start_date = Time.now()
