@@ -67,7 +67,7 @@ for instrument in response.json()["data"]:
         break
 
 endpoint = f'followup_request/schedule/{instrument_id}'
-url = urllib.parse.urljoin(host, f'/api/{endpoint}')
+url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 params = {'observationStartDate': str(Time.now()+TimeDelta(12 * u.hour)),
           'observationEndDate': str(Time.now() + TimeDelta(24 * u.hour)),
           'output_format': 'csv'}
@@ -75,6 +75,7 @@ params = {'observationStartDate': str(Time.now()+TimeDelta(12 * u.hour)),
 response = session.request(method, url, params=params, headers=headers)
 output = StringIO(response.content.decode('utf-8'))
 df=pd.read_csv(output)
+df.to_csv('scheduler_output.csv',index=False)
 
 if len(df) == 0:
     print('No observations scheduled... sorry.')
