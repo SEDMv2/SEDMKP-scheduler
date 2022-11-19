@@ -10,22 +10,26 @@ import pandas as pd
 
 from io import StringIO
 
+
 def parse_commandline():
     """
     Parse the options given on the command-line.
     """
     parser = optparse.OptionParser()
-    parser.add_option("-w","--host",default="https://fritz.science",help="Host url for skyportal instance, by default fritz")
-    parser.add_option("-f","--outfile",default="./queue_target.dat",help="Output file name")
-    parser.add_option("-o","--outputDir",default="./",help="Output directory path")
-    parser.add_option("-r","--requests",default="./requests/",help="Requests folder path where top request from scheduler is sent")
-    parser.add_option("-t","--token",help="Fritz/skyportal token, required")
-    parser.add_option("--doPlots",  action="store_true", default=False,help="Make plots")
-    parser.add_option("--doTime",  action="store_true", default=False,help="Not implemented yet")
+    parser.add_option("-w", "--host", default="https://fritz.science",
+                      help="Host url for skyportal instance, by default fritz")
+    parser.add_option("-f", "--outfile", default="./queue_target.dat", help="Output file name")
+    parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
+    parser.add_option("-r", "--requests", default="./requests/",
+                      help="Requests folder path where top request from scheduler is sent")
+    parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
+    parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
+    parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
 
     opts, args = parser.parse_args()
 
     return opts
+
 
 # Parse command line
 opts = parse_commandline()
@@ -40,7 +44,7 @@ if opts.doTime:
     tend = Time(opts.tend)
 else:
     tstart = Time.now()
-    tend = Time.now() + TimeDelta(12*u.hour)
+    tend = Time.now() + TimeDelta(12 * u.hour)
 
 session = requests.Session()
 
@@ -48,7 +52,7 @@ if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
 else:
     try:
-        token = open('token.txt','r').read().strip()
+        token = open('token.txt', 'r').read().strip()
         headers = {'Authorization': f'token {token}'}
     except:
         headers = None
@@ -68,45 +72,44 @@ for instrument in response.json()["data"]:
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'observationStartDate': str(Time.now()+TimeDelta(12 * u.hour)),
+params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'observationEndDate': str(Time.now() + TimeDelta(24 * u.hour)),
           'output_format': 'csv'}
 
 response = session.request(method, url, params=params, headers=headers)
 output = StringIO(response.content.decode('utf-8'))
-df=pd.read_csv(output)
+df = pd.read_csv(output)
 # df.to_csv('scheduler_output.csv',index=False)
 
 if len(df) == 0:
     print('No observations scheduled... sorry.')
     exit(0)
 
-row=df.iloc[0]
+row = df.iloc[0]
 
-fid = open(outfile,'w')
+fid = open(outfile, 'w')
 now = Time.now()
 gps = now.gps
-requestID = "%s_%d" % (row["object_id"],gps)
+requestID = "%s_%d" % (row["object_id"], gps)
 mag = 99
 mode = 0
 ra_rate = 0
 dec_rate = 0
-print('PROGRAM_PI=%s' % row["requester"],file=fid,flush=True)
-print('PROGRAM_ID=%s' % row["group_id"],file=fid,flush=True)
-print('OBJECT_ID=%s' % row["object_id"],file=fid,flush=True)
-print('REQUEST_ID=%s' % requestID, file=fid,flush=True)
-print('COMMENT=%s' % row["request_id"],file=fid,flush=True)
-print('OBJ_RA=%s' % row["ra"],file=fid,flush=True)
-print('OBJ_DEC=%s' % row["dec"],file=fid,flush=True)
-print('EQUINOX=%.2f' % row["epoch"],file=fid,flush=True)
-print('RA_RATE=%.2f' % ra_rate,file=fid,flush=True)
-print('DEC_RATE=%.2f' % dec_rate,file=fid,flush=True)
-print('MAGNITUDE=%.2f' % mag, file=fid,flush=True)
-print('EXPTIME=%d' % row["exposure_time"],file=fid,flush=True)
-print('FILTER=%s' % row["filter"],file=fid,flush=True)
-print('CAMERA_MODE=%d' % mode,file=fid,flush=True)
+print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
+print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
+print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
+print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
+print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
+print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
+print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
+print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
+print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+print('FILTER=%s' % row["filter"], file=fid, flush=True)
+print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
 
 cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
-os.system(cp_command) 
-
+os.system(cp_command)
