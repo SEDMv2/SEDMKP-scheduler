@@ -48,7 +48,7 @@ if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
 else:
     try:
-        token = open('token.txt','r').read()
+        token = open('token.txt','r').read().strip()
         headers = {'Authorization': f'token {token}'}
     except:
         headers = None
