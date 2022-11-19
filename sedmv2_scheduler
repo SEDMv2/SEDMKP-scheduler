@@ -15,7 +15,7 @@ def parse_commandline():
     Parse the options given on the command-line.
     """
     parser = optparse.OptionParser()
-    parser.add_option("-h","--host",default="https://fritz.science")
+    parser.add_option("-ht","--host",default="https://fritz.science")
     parser.add_option("-f","--outfile",default="./queue_target.dat")
     parser.add_option("-o","--outputDir",default="./")
     parser.add_option("-r","--requests",default="./requests/")
