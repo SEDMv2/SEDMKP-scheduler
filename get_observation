@@ -50,13 +50,13 @@ else:
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif glob.glob('token.txt')!=[]:
+else:
     token = open('token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
-else:
-    headers = None
-    print('Token not found, cannot access queue')
-    exit(1)
+# else:
+#     headers = None
+#     print('Token not found, cannot access queue')
+#     exit(1)
 
 method = 'GET'
 start_date = Time.now()
