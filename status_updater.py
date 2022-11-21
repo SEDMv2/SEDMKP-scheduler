@@ -13,9 +13,7 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
-    parser.add_option("-a", "--alloc_id", help="Allocation id of the request")
     parser.add_option("-r", "--request_id", help="Request id to update")
-    parser.add_option("-o", "--object_id", help="Object id of the request")
     parser.add_option("-s", "--status", help="Status of the request", type=int)
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
 
@@ -46,7 +44,6 @@ else:
         headers = {'Authorization': f'token {token}'}
     except:
         headers = None
-method = 'POST'
 session = requests.Session()
 
 status = {0: "Complete", 1: "Interrupted", 2: "Skipped"}
@@ -56,11 +53,13 @@ if opts.status not in status.keys():
 
 endpoint = f'followup_request/{opts.request_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'allocation_id': opts.alloc_id,
-          'obj_id': opts.object_id,
+response = session.request('GET', url, params=None, headers=headers).json()
+
+params = {'allocation_id': response['allocation_id'],
+          'obj_id': response['obj_id'],
           'status': status[opts.status]}
 
-response = session.request(method, url, params=params, headers=headers)
+response = session.request('PUT', url, params=params, headers=headers)
 if response['status']=="success":
     print(f'Successfully updated request {opts.request_id}')
 else:
