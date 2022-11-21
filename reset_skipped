@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+import numpy as np
+import optparse
+import urllib
+import requests
+import sys
+import glob
+
+def parse_commandline():
+    """
+    Parse the options given on the command-line.
+    """
+    parser = optparse.OptionParser()
+    parser.add_option("-w", "--host", default="https://fritz.science",
+                      help="Host url for skyportal instance, by default fritz")
+    parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
+
+    opts, args = parser.parse_args()
+
+    return opts, args
+
+
+# Parse command line
+opts, args = parse_commandline()
+
+if opts.token:
+    headers = {'Authorization': f'token {opts.token}'}
+elif glob.glob('/home/sedm/Queue/sedmv2/token.txt')!=[]:
+    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
+    headers = {'Authorization': f'token {token}'}
+else:
+    headers = None
+    print('Token not provided,exiting')
+    exit(1)
+    
+session = requests.Session()
+
+method = 'GET'
+
+endpoint = 'instrument'
+url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+response = session.request(method, url, headers=headers)
+
+for instrument in response.json()["data"]:
+    if instrument["name"] == "SEDMv2":
+        instrument_id = instrument["id"]
+        break
+
+endpoint = f'followup_request/schedule/{instrument_id}'
+url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+params = {'status': 'Skipped',
+          'output_format': 'csv'}
+
+response = session.request(method, url, params=params, headers=headers)
+
+output = StringIO(response.content.decode('utf-8'))
+if 'error' in response.content.decode('utf-8'):
+    print('Could not access queue')
+    exit(1)
+df = pd.read_csv(output)
+
+for i in range(len(df)):
+    row = df.iloc[i]
+    request_id = row['request_id']
+    endpoint = f'followup_request/{opts.request_id}'
+    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    response = session.request('GET', url, params=None, headers=headers).json()
+
+    if 'error' in response['status'] or response['data']=={}:
+        print('Could not query the request, check request_id')
+        exit(1)
+
+    params = {'allocation_id': response['data']['allocation_id'],
+              'obj_id': response['data']['obj_id'],
+              'status': 'submitted'}
+
+    response = session.request('PUT', url, json=params, headers=headers).json()
+    if response['status']=="success":
+        print(f'Successfully updated request {opts.request_id}')
+        exit(0)
+    else:
+        print(f'Error in updating request {opts.request_id}')
+        print(response['message'])
+        exit(1)
