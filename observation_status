@@ -46,7 +46,7 @@ else:
     
 session = requests.Session()
 
-status = {0: "Completed", 1: "Failed", 2: "Skipped"}
+status = {'0': "Completed", '1': "Failed", '2': "Skipped"}
 if opts.status not in status.keys():
     print('Invalid status, exiting')
     exit(1)
