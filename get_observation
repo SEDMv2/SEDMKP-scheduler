@@ -46,7 +46,6 @@ else:
     tstart = Time.now()
     tend = Time.now() + TimeDelta(12 * u.hour)
 
-session = requests.Session()
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
@@ -64,7 +63,7 @@ end_date = Time.now() + TimeDelta(12 * u.hour)
 try:
     endpoint = 'instrument'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    response = session.request(method, url, headers=headers)
+    response = requests.request(method, url, headers=headers)
 
     for instrument in response.json()["data"]:
         if instrument["name"] == "SEDMv2":
@@ -80,9 +79,9 @@ params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'status': 'submitted',
           'output_format': 'csv'}
 
-response = session.request(method, url, params=params, headers=headers)
+response = requests.request(method, url, params=params, headers=headers)
 output = StringIO(response.content.decode('utf-8'))
-
+print(response.content.decode('utf-8'))
 if 'error' in response.content.decode('utf-8'):
     print('Could not access queue')
     exit(1)
