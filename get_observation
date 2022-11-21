@@ -131,7 +131,7 @@ print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
 
 # Checking if the saved queue_target.dat has the correct request_id
-if open(outfile,'r').readlines()[4].split('=')[-1].strip() != str(row["request_id"]):
+if open(outfile,'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
     print('Error in saving queue_target.dat')
     exit(6)
 
