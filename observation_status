@@ -5,6 +5,7 @@ import optparse
 import urllib
 import requests
 import sys
+import glob
 
 def parse_commandline():
     """
@@ -19,31 +20,36 @@ def parse_commandline():
 
     opts, args = parser.parse_args()
 
-    return opts
+    return opts, args
 
 
 # Parse command line
-opts = parse_commandline()
-if not opts.request_id:
-    print('--request_id is required, exiting')
-    sys.exit()
-if opts.status is None:
-    print('--status is required, exiting')
-    sys.exit()
+opts, args = parse_commandline()
+print(args)
+if opts.request_id is None or opts.status is None:
+    if len(args)==2:
+        opts.request_id = args[1]
+        opts.status = args[0]
+    else:
+        print('No request_id and status supplied, exiting')
+        exit(1)
+
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
+elif glob.glob('/home/sedm/Queue/sedmv2/token.txt')!=[]:
+    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
+    headers = {'Authorization': f'token {token}'}
 else:
-    try:
-        token = open('token.txt', 'r').read().strip()
-        headers = {'Authorization': f'token {token}'}
-    except:
-        headers = None
+    headers = None
+    print('Token not provided,exiting')
+    exit(1)
+    
 session = requests.Session()
 
-status = {0: "Complete", 1: "Interrupted", 2: "Skipped"}
+status = {0: "Completed", 1: "Failed", 2: "Skipped"}
 if opts.status not in status.keys():
     print('Invalid status, exiting')
-    sys.exit()
+    exit(1)
 
 endpoint = f'followup_request/{opts.request_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -51,7 +57,7 @@ response = session.request('GET', url, params=None, headers=headers).json()
 
 if 'error' in response['status'] or response['data']=={}:
     print('Could not query the request, check request_id')
-    sys.exit()
+    exit(1)
 
 params = {'allocation_id': response['data']['allocation_id'],
           'obj_id': response['data']['obj_id'],
@@ -60,7 +66,9 @@ params = {'allocation_id': response['data']['allocation_id'],
 response = session.request('PUT', url, json=params, headers=headers).json()
 if response['status']=="success":
     print(f'Successfully updated request {opts.request_id}')
+    exit(0)
 else:
     print(f'Error in updating request {opts.request_id}')
     print(response['message'])
+    exit(1)
 
