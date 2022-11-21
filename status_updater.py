@@ -35,7 +35,7 @@ if not opts.alloc_id:
 if not opts.object_id:
     print('--object_id is required, exiting')
     sys.exit()
-if not opts.status:
+if opts.status is None:
     print('--status is required, exiting')
     sys.exit()
 if opts.token:
