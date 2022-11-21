@@ -7,6 +7,8 @@ import requests
 import sys
 import glob
 
+from io import StringIO
+
 def parse_commandline():
     """
     Parse the options given on the command-line.
