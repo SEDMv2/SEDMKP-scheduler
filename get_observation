@@ -21,7 +21,7 @@ def parse_commandline():
                       help="Host url for skyportal instance, by default fritz")
     parser.add_option("-f", "--outfile", default="./queue_target.dat", help="Output file name")
     parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
-    parser.add_option("-r", "--requests", default="./requests/",
+    parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
                       help="Requests folder path where top request from scheduler is sent")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
     parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
