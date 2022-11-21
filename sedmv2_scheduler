@@ -79,38 +79,51 @@ params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
 
 response = session.request(method, url, params=params, headers=headers)
 output = StringIO(response.content.decode('utf-8'))
+if 'error' in output:
+    print('Could not access queue')
+    exit(1)
 df = pd.read_csv(output)
 # df.to_csv('scheduler_output.csv',index=False)
 
 if len(df) == 0:
     print('No observations scheduled... sorry.')
-    exit(0)
+    exit(2)
 
 row = df.iloc[0]
-
-fid = open(outfile, 'w')
-now = Time.now()
-gps = now.gps
-requestID = "%s_%d" % (row["object_id"], gps)
-mag = 99
-mode = 0
-ra_rate = 0
-dec_rate = 0
-print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
-print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
-print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
-print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
-print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
-print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
-print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
-print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
-print('FILTER=%s' % row["filter"], file=fid, flush=True)
-print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
-fid.close()
+required_columns = ["requester","group_id","object_id","request_id","ra","dec","epoch","exposure_time","filter"]
+for col in required_columns:
+    if col not in df.columns:
+        print(f'{col} not present in queue request')
+        exit(5)
+        
+try:
+    fid = open(outfile, 'w')
+    now = Time.now()
+    gps = now.gps
+    requestID = "%s_%d" % (row["object_id"], gps)
+    mag = 99
+    mode = 0
+    ra_rate = 0
+    dec_rate = 0
+    print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
+    print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
+    print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
+    print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
+    print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
+    print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
+    print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
+    print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
+    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+    print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+    print('FILTER=%s' % row["filter"], file=fid, flush=True)
+    print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
+    fid.close()
+except:
+    print('Error in saving queue_target.dat')
+    exit(6)
 
 cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
 os.system(cp_command)
+exit(0)
