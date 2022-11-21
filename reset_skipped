@@ -66,7 +66,7 @@ df = pd.read_csv(output)
 for i in range(len(df)):
     row = df.iloc[i]
     request_id = row['request_id']
-    endpoint = f'followup_request/{opts.request_id}'
+    endpoint = f'followup_request/{request_id}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     response = session.request('GET', url, params=None, headers=headers).json()
 
@@ -80,9 +80,9 @@ for i in range(len(df)):
 
     response = session.request('PUT', url, json=params, headers=headers).json()
     if response['status']=="success":
-        print(f'Successfully updated request {opts.request_id}')
+        print(f'Successfully updated request {request_id}')
         exit(0)
     else:
-        print(f'Error in updating request {opts.request_id}')
+        print(f'Error in updating request {request_id}')
         print(response['message'])
         exit(1)
