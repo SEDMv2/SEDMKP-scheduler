@@ -56,21 +56,18 @@ else:
     except:
         headers = None
 method = 'GET'
-
+print(headers)
 start_date = Time.now()
 end_date = Time.now() + TimeDelta(12 * u.hour)
 
-try:
-    endpoint = 'instrument'
-    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    response = requests.request(method, url, headers=headers)
+endpoint = 'instrument'
+url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+response = requests.request(method, url, headers=headers)
 
-    for instrument in response.json()["data"]:
-        if instrument["name"] == "SEDMv2":
-            instrument_id = instrument["id"]
-            break
-except:
-    instrument_id = 1078
+for instrument in response.json()["data"]:
+    if instrument["name"] == "SEDMv2":
+        instrument_id = instrument["id"]
+        break
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -101,31 +98,32 @@ for col in required_columns:
         print(f'{col} not present in queue request')
         exit(5)
         
-try:
-    fid = open(outfile, 'w')
-    now = Time.now()
-    gps = now.gps
-    requestID = "%s_%d" % (row["object_id"], gps)
-    mag = 99
-    mode = 0
-    ra_rate = 0
-    dec_rate = 0
-    print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
-    print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
-    print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-    print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
-    print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
-    print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
-    print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
-    print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
-    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-    print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
-    print('FILTER=%s' % row["filter"], file=fid, flush=True)
-    print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
-    fid.close()
-except:
+fid = open(outfile, 'w')
+now = Time.now()
+gps = now.gps
+requestID = "%s_%d" % (row["object_id"], gps)
+mag = 99
+mode = 0
+ra_rate = 0
+dec_rate = 0
+print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
+print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
+print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
+print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
+print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
+print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
+print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
+print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
+print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+print('FILTER=%s' % row["filter"], file=fid, flush=True)
+print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
+fid.close()
+
+# Checking if the saved queue_target.dat has the correct request_id
+if open(outfile,'r').readlines()[4].split('=')[-1].strip() != str(row["request_id"]):
     print('Error in saving queue_target.dat')
     exit(6)
 
