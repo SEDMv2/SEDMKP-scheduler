@@ -51,7 +51,7 @@ else:
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
 else:
-    token = open('./token.txt', 'r').read().strip()
+    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 # else:
 #     headers = None
