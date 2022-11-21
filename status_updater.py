@@ -27,12 +27,6 @@ opts = parse_commandline()
 if not opts.request_id:
     print('--request_id is required, exiting')
     sys.exit()
-if not opts.alloc_id:
-    print('--alloc_id is required, exiting')
-    sys.exit()
-if not opts.object_id:
-    print('--object_id is required, exiting')
-    sys.exit()
 if opts.status is None:
     print('--status is required, exiting')
     sys.exit()
