@@ -61,14 +61,17 @@ method = 'GET'
 start_date = Time.now()
 end_date = Time.now() + TimeDelta(12 * u.hour)
 
-endpoint = 'instrument'
-url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-response = session.request(method, url, headers=headers)
+try:
+    endpoint = 'instrument'
+    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    response = session.request(method, url, headers=headers)
 
-for instrument in response.json()["data"]:
-    if instrument["name"] == "SEDMv2":
-        instrument_id = instrument["id"]
-        break
+    for instrument in response.json()["data"]:
+        if instrument["name"] == "SEDMv2":
+            instrument_id = instrument["id"]
+            break
+except:
+    instrument_id = 1078
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
