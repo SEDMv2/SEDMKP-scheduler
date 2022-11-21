@@ -49,13 +49,18 @@ endpoint = f'followup_request/{opts.request_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 response = session.request('GET', url, params=None, headers=headers).json()
 
-params = {'allocation_id': response['allocation_id'],
-          'obj_id': response['obj_id'],
+if 'error' in response['status'] or response['data']=={}:
+    print('Could not query the request, check request_id')
+    sys.exit()
+
+params = {'allocation_id': response['data']['allocation_id'],
+          'obj_id': response['data']['obj_id'],
           'status': status[opts.status]}
 
-response = session.request('PUT', url, params=params, headers=headers)
+response = session.request('PUT', url, json=params, headers=headers).json()
 if response['status']=="success":
     print(f'Successfully updated request {opts.request_id}')
 else:
     print(f'Error in updating request {opts.request_id}')
+    print(response['message'])
 
