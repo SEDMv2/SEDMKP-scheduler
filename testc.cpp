@@ -7,7 +7,7 @@ using namespace std;
 int main(){
 int error = 0;
 std::stringstream cmd;
-cmd << "/media/yashvi/Data/Work/sedmv2/" << "get_observation";
+cmd << "/home/sedm/Queue/sedmv2/" << "get_observation";
 error = system(cmd.str().c_str());
 cout << "error code " << error;
 if(WEXITSTATUS(error) == 0){
