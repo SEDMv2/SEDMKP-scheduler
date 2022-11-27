@@ -8,6 +8,7 @@ from astropy.time import Time, TimeDelta
 import astropy.units as u
 import pandas as pd
 import glob
+import logging
 
 from io import StringIO
 
@@ -32,6 +33,8 @@ def parse_commandline():
     return opts
 
 
+logging.basicConfig(filename='/home/sedm/Queue/sedmv2/scheduler.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
 # Parse command line
 opts = parse_commandline()
 outfile = opts.outfile
@@ -47,15 +50,14 @@ else:
     tstart = Time.now()
     tend = Time.now() + TimeDelta(12 * u.hour)
 
-
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif glob.glob('/home/sedm/Queue/sedmv2/token.txt')!=[]:
+elif len(glob.glob('/home/sedm/Queue/sedmv2/token.txt'))!=0:
     token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    print('Token not found, cannot access queue')
+    logging.info('Token not found, cannot access queue')
     exit(1)
 
 method = 'GET'
@@ -70,6 +72,7 @@ for instrument in response.json()["data"]:
     if instrument["name"] == "SEDMv2":
         instrument_id = instrument["id"]
         break
+logging.info(f'Found instrument id {instrument_id}')
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -78,34 +81,33 @@ params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'status': 'submitted',
           'output_format': 'csv'}
 
-print('Making request now')
+logging.info('Making request now')
 response = requests.request(method, url, params=params, headers=headers)
 
 output_string = response.content.decode('utf-8')
 output = StringIO(output_string)
-
+logging.info(output_string)
 if 'error' in output_string:
     if 'Need at least one observation to schedule' in output_string:
-        print('No observations scheduled... sorry.')
+        logging.info('No observations scheduled... sorry.')
         exit(2)
     else:
-        print('Could not access queue')
+        logging.info('Could not access queue')
         exit(1)
 
 df = pd.read_csv(output)
-# df.to_csv('scheduler_output.csv',index=False)
 
 if len(df) == 0:
-    print('No observations scheduled... sorry.')
+    logging.info('No observations scheduled... sorry.')
     exit(2)
 
 row = df.iloc[0]
-required_columns = ["requester","group_id","object_id","request_id","ra","dec","epoch","exposure_time","filter"]
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
 for col in required_columns:
     if col not in df.columns:
-        print(f'{col} not present in queue request')
+        logging.info(f'{col} not present in queue request')
         exit(5)
-        
+
 fid = open(outfile, 'w')
 now = Time.now()
 gps = now.gps
@@ -131,10 +133,10 @@ print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
 
 # Checking if the saved queue_target.dat has the correct request_id
-if open(outfile,'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
-    print('Error in saving queue_target.dat')
+if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
+    logging.info('Error in saving queue_target.dat')
     exit(6)
 
-cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
-os.system(cp_command)
+#cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
+#os.system(cp_command)
 exit(0)
