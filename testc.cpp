@@ -10,7 +10,7 @@ std::stringstream cmd;
 cmd << "/home/sedm/Queue/sedmv2/" << "get_observation";
 error = system(cmd.str().c_str());
 cout << "error code " << error;
-if(WEXITSTATUS(error) == 0){
+if(WEXITSTATUS(error) != 0){
 	cout << "here";
 };
 // return 0;
