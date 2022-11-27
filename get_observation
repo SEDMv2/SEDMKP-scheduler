@@ -35,6 +35,7 @@ def parse_commandline():
 
 logging.basicConfig(filename='/home/sedm/Queue/sedmv2/scheduler.log', encoding='utf-8', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 # Parse command line
 opts = parse_commandline()
 outfile = opts.outfile
