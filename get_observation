@@ -64,9 +64,11 @@ method = 'GET'
 start_date = Time.now()
 end_date = Time.now() + TimeDelta(12 * u.hour)
 
+session = requests.Session()
+
 endpoint = 'instrument'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-response = requests.request(method, url, headers=headers)
+response = session.request(method, url, headers=headers)
 
 for instrument in response.json()["data"]:
     if instrument["name"] == "SEDMv2":
@@ -82,7 +84,7 @@ params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'output_format': 'csv'}
 
 logging.info('Making request now')
-response = requests.request(method, url, params=params, headers=headers)
+response = session.request(method, url, params=params, headers=headers)
 
 output_string = response.content.decode('utf-8')
 output = StringIO(output_string)
