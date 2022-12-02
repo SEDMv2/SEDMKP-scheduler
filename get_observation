@@ -20,10 +20,11 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
-    parser.add_option("-f", "--outfile", default="./queue_target.dat", help="Output file name")
-    parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
-    parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
-                      help="Requests folder path where top request from scheduler is sent")
+    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Default path where queue scripts are")
+    parser.add_option("-f", "--outfile", default="queue_target.dat", help="Output file name")
+#     parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
+#     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
+#                       help="Requests folder path where top request from scheduler is sent")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
     parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
     parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
@@ -32,17 +33,17 @@ def parse_commandline():
 
     return opts
 
+opts = parse_commandline()
 
-logging.basicConfig(filename='/home/sedm/Queue/sedmv2/scheduler.log', encoding='utf-8', level=logging.DEBUG,
+logging.basicConfig(filename=f'{opts.queuePath}/scheduler.log', encoding='utf-8', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 # Parse command line
-opts = parse_commandline()
-outfile = opts.outfile
+outfile = f'{opts.queuePath}/{opts.outfile}'
 
-outputDir = opts.outputDir
-if not os.path.isdir(outputDir):
-    os.makedirs(outputDir)
+# outputDir = opts.outputDir
+# if not os.path.isdir(outputDir):
+#     os.makedirs(outputDir)
 
 if opts.doTime:
     tstart = Time(opts.tstart)
@@ -53,8 +54,8 @@ else:
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif len(glob.glob('/home/sedm/Queue/sedmv2/token.txt'))!=0:
-    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
+elif len(glob.glob(f'{opts.queuePath}/token.txt'))!=0:
+    token = open(f'{opts.queuePath}/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
