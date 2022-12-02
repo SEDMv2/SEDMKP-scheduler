@@ -59,7 +59,7 @@ elif len(glob.glob(f'{opts.queuePath}/token.txt'))!=0:
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    logging.error('Token not found, cannot access queue')
+    logging.error('get_obs: Token not found, cannot access queue')
     sys.exit(1)
 
 method = 'GET'
@@ -76,7 +76,7 @@ for instrument in response.json()["data"]:
     if instrument["name"] == "SEDMv2":
         instrument_id = instrument["id"]
         break
-logging.info(f'Found instrument id {instrument_id}')
+logging.info(f'get_obs: Found instrument id {instrument_id}')
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -85,7 +85,7 @@ params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'status': 'submitted',
           'output_format': 'csv'}
 
-logging.info('Making request now')
+logging.info('get_obs: Making request now')
 response = session.request(method, url, params=params, headers=headers)
 
 output_string = response.content.decode('utf-8')
@@ -93,23 +93,23 @@ output = StringIO(output_string)
 logging.info(output_string)
 if 'error' in output_string:
     if 'Need at least one observation to schedule' in output_string:
-        logging.error('No observations scheduled... sorry.')
+        logging.error('get_obs: No observations scheduled... sorry.')
         sys.exit(2)
     else:
-        logging.error('Could not access queue')
+        logging.error('get_obs: Could not access queue')
         sys.exit(1)
 
 df = pd.read_csv(output)
 
 if len(df) == 0:
-    logging.error('No observations scheduled... sorry.')
+    logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
 
 row = df.iloc[0]
 required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
 for col in required_columns:
     if col not in df.columns:
-        logging.error(f'{col} not present in queue request')
+        logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
 
 fid = open(outfile, 'w')
@@ -138,7 +138,7 @@ fid.close()
 
 # Checking if the saved queue_target.dat has the correct request_id
 if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
-    logging.error('Error in saving queue_target.dat')
+    logging.error('get_obs: Error in saving queue_target.dat')
     sys.exit(6)
 
 #cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
