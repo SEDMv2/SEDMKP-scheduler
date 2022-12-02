@@ -6,6 +6,7 @@ import urllib
 import requests
 import sys
 import glob
+import logging
 
 def parse_commandline():
     """
