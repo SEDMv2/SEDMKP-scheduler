@@ -37,7 +37,7 @@ if opts.request_id is None or opts.status is None:
         opts.request_id = args[1]
         opts.status = args[0]
     else:
-        logging.error('No request_id and status supplied, exiting')
+        logging.error('obs_stat: No request_id and status supplied, exiting')
         exit(1)
 
 if opts.token:
@@ -47,14 +47,14 @@ elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    logging.error('Token not provided,exiting')
+    logging.error('obs_stat: Token not provided,exiting')
     exit(1)
     
 session = requests.Session()
 
 status = {'0': "Completed", '1': "Failed", '2': "Skipped"}
 if opts.status not in status.keys():
-    logging.error('Invalid status, exiting')
+    logging.error('obs_stat: Invalid status, exiting')
     exit(1)
 
 endpoint = f'followup_request/{opts.request_id}'
@@ -62,7 +62,7 @@ url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 response = session.request('GET', url, params=None, headers=headers).json()
 
 if 'error' in response['status'] or response['data']=={}:
-    logging.error('Could not query the request, check request_id')
+    logging.error('obs_stat: Could not query the request, check request_id')
     exit(1)
 
 params = {'allocation_id': response['data']['allocation_id'],
@@ -71,10 +71,10 @@ params = {'allocation_id': response['data']['allocation_id'],
 
 response = session.request('PUT', url, json=params, headers=headers).json()
 if response['status']=="success":
-    logging.info(f'Successfully updated request {opts.request_id}')
+    logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
     exit(0)
 else:
-    logging.error(f'Error in updating request {opts.request_id}')
+    logging.error(f'obs_stat: Error in updating request {opts.request_id}')
     logging.info(response['message'])
     exit(1)
 
