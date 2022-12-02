@@ -7,6 +7,7 @@ import requests
 import sys
 import glob
 import logging
+from astropy.time import Time
 
 def parse_commandline():
     """
