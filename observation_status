@@ -27,7 +27,7 @@ def parse_commandline():
 # Parse command line
 opts, args = parse_commandline()
 
-logging.basicConfig(filename=f'{opts.queuePath}/scheduler.log', encoding='utf-8', level=logging.DEBUG,
+logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
