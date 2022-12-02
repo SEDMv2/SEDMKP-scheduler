@@ -59,7 +59,7 @@ elif len(glob.glob(f'{opts.queuePath}/token.txt'))!=0:
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    logging.info('Token not found, cannot access queue')
+    logging.error('Token not found, cannot access queue')
     sys.exit(1)
 
 method = 'GET'
@@ -93,23 +93,23 @@ output = StringIO(output_string)
 logging.info(output_string)
 if 'error' in output_string:
     if 'Need at least one observation to schedule' in output_string:
-        logging.info('No observations scheduled... sorry.')
+        logging.error('No observations scheduled... sorry.')
         sys.exit(2)
     else:
-        logging.info('Could not access queue')
+        logging.error('Could not access queue')
         sys.exit(1)
 
 df = pd.read_csv(output)
 
 if len(df) == 0:
-    logging.info('No observations scheduled... sorry.')
+    logging.error('No observations scheduled... sorry.')
     sys.exit(2)
 
 row = df.iloc[0]
 required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
 for col in required_columns:
     if col not in df.columns:
-        logging.info(f'{col} not present in queue request')
+        logging.error(f'{col} not present in queue request')
         sys.exit(5)
 
 fid = open(outfile, 'w')
@@ -138,7 +138,7 @@ fid.close()
 
 # Checking if the saved queue_target.dat has the correct request_id
 if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
-    logging.info('Error in saving queue_target.dat')
+    logging.error('Error in saving queue_target.dat')
     sys.exit(6)
 
 #cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
