@@ -8,6 +8,7 @@ import sys
 import glob
 import pandas as pd
 import logging
+from astropy.time import Time
 
 from io import StringIO
 
