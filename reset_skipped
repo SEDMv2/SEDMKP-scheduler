@@ -7,6 +7,7 @@ import requests
 import sys
 import glob
 import pandas as pd
+import logging
 
 from io import StringIO
 
@@ -17,6 +18,7 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
+    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Path where queue scripts are")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
 
     opts, args = parser.parse_args()
@@ -26,15 +28,18 @@ def parse_commandline():
 
 # Parse command line
 opts, args = parse_commandline()
+logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif glob.glob('/home/sedm/Queue/sedmv2/token.txt')!=[]:
-    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
+elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
+    token = open(f'{opts.queuePath}/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    print('Token not provided,exiting')
+    logging.error('reset_skipped: Token not provided,exiting')
     exit(1)
     
 session = requests.Session()
@@ -59,7 +64,7 @@ response = session.request(method, url, params=params, headers=headers)
 
 output = StringIO(response.content.decode('utf-8'))
 if 'error' in response.content.decode('utf-8'):
-    print('Could not access queue')
+    logging.error('reset_skipped: Could not access queue')
     exit(1)
 df = pd.read_csv(output)
 
@@ -71,7 +76,7 @@ for i in range(len(df)):
     response = session.request('GET', url, params=None, headers=headers).json()
 
     if 'error' in response['status'] or response['data']=={}:
-        print('Could not query the request, check request_id')
+        logging.error('reset_skipped: Could not query the request, check request_id')
         exit(1)
 
     params = {'allocation_id': response['data']['allocation_id'],
@@ -80,9 +85,9 @@ for i in range(len(df)):
 
     response = session.request('PUT', url, json=params, headers=headers).json()
     if response['status']=="success":
-        print(f'Successfully updated request {request_id}')
+        logging.info(f'reset_skipped: Successfully updated request {request_id}')
         exit(0)
     else:
-        print(f'Error in updating request {request_id}')
-        print(response['message'])
+        logging.error(f'reset_skipped: Error in updating request {request_id}')
+        logging.info(response['message'])
         exit(1)
