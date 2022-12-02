@@ -14,6 +14,7 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
+    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Path where queue scripts are")
     parser.add_option("-r", "--request_id", help="Request id to update")
     parser.add_option("-s", "--status", help="Status of the request", type=int)
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
@@ -25,30 +26,34 @@ def parse_commandline():
 
 # Parse command line
 opts, args = parse_commandline()
-print(args)
+
+logging.basicConfig(filename=f'{opts.queuePath}/scheduler.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+
 if opts.request_id is None or opts.status is None:
     if len(args)==2:
         opts.request_id = args[1]
         opts.status = args[0]
     else:
-        print('No request_id and status supplied, exiting')
+        logging.error('No request_id and status supplied, exiting')
         exit(1)
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif glob.glob('/home/sedm/Queue/sedmv2/token.txt')!=[]:
-    token = open('/home/sedm/Queue/sedmv2/token.txt', 'r').read().strip()
+elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
+    token = open(f'{opts.queuePath}/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    print('Token not provided,exiting')
+    logging.error('Token not provided,exiting')
     exit(1)
     
 session = requests.Session()
 
 status = {'0': "Completed", '1': "Failed", '2': "Skipped"}
 if opts.status not in status.keys():
-    print('Invalid status, exiting')
+    logging.error('Invalid status, exiting')
     exit(1)
 
 endpoint = f'followup_request/{opts.request_id}'
@@ -56,7 +61,7 @@ url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 response = session.request('GET', url, params=None, headers=headers).json()
 
 if 'error' in response['status'] or response['data']=={}:
-    print('Could not query the request, check request_id')
+    logging.error('Could not query the request, check request_id')
     exit(1)
 
 params = {'allocation_id': response['data']['allocation_id'],
@@ -65,10 +70,10 @@ params = {'allocation_id': response['data']['allocation_id'],
 
 response = session.request('PUT', url, json=params, headers=headers).json()
 if response['status']=="success":
-    print(f'Successfully updated request {opts.request_id}')
+    logging.info(f'Successfully updated request {opts.request_id}')
     exit(0)
 else:
-    print(f'Error in updating request {opts.request_id}')
-    print(response['message'])
+    logging.error(f'Error in updating request {opts.request_id}')
+    logging.info(response['message'])
     exit(1)
 
