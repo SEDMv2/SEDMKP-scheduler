@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-import os
+import os, sys
 import optparse
 import requests
 import urllib
 from astropy.time import Time, TimeDelta
 import astropy.units as u
 import pandas as pd
+import glob
+import logging
 
 from io import StringIO
 
@@ -18,10 +20,11 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
-    parser.add_option("-f", "--outfile", default="./queue_target.dat", help="Output file name")
-    parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
-    parser.add_option("-r", "--requests", default="./requests/",
-                      help="Requests folder path where top request from scheduler is sent")
+    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Default path where queue scripts are")
+    parser.add_option("-f", "--outfile", default="queue_target.dat", help="Output file name")
+#     parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
+#     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
+#                       help="Requests folder path where top request from scheduler is sent")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
     parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
     parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
@@ -30,14 +33,17 @@ def parse_commandline():
 
     return opts
 
-
-# Parse command line
 opts = parse_commandline()
-outfile = opts.outfile
 
-outputDir = opts.outputDir
-if not os.path.isdir(outputDir):
-    os.makedirs(outputDir)
+logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+# Parse command line
+outfile = f'{opts.queuePath}/{opts.outfile}'
+
+# outputDir = opts.outputDir
+# if not os.path.isdir(outputDir):
+#     os.makedirs(outputDir)
 
 if opts.doTime:
     tstart = Time(opts.tstart)
@@ -46,20 +52,21 @@ else:
     tstart = Time.now()
     tend = Time.now() + TimeDelta(12 * u.hour)
 
-session = requests.Session()
-
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
+elif len(glob.glob(f'{opts.queuePath}/token.txt'))!=0:
+    token = open(f'{opts.queuePath}/token.txt', 'r').read().strip()
+    headers = {'Authorization': f'token {token}'}
 else:
-    try:
-        token = open('token.txt', 'r').read().strip()
-        headers = {'Authorization': f'token {token}'}
-    except:
-        headers = None
-method = 'GET'
+    headers = None
+    logging.error('get_obs: Token not found, cannot access queue')
+    sys.exit(1)
 
+method = 'GET'
 start_date = Time.now()
 end_date = Time.now() + TimeDelta(12 * u.hour)
+
+session = requests.Session()
 
 endpoint = 'instrument'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -69,23 +76,41 @@ for instrument in response.json()["data"]:
     if instrument["name"] == "SEDMv2":
         instrument_id = instrument["id"]
         break
+logging.info(f'get_obs: Found instrument id {instrument_id}')
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'observationEndDate': str(Time.now() + TimeDelta(24 * u.hour)),
+          'status': 'submitted',
           'output_format': 'csv'}
 
+logging.info('get_obs: Making request now')
 response = session.request(method, url, params=params, headers=headers)
-output = StringIO(response.content.decode('utf-8'))
+
+output_string = response.content.decode('utf-8')
+output = StringIO(output_string)
+logging.info(output_string)
+if 'error' in output_string:
+    if 'Need at least one observation to schedule' in output_string:
+        logging.error('get_obs: No observations scheduled... sorry.')
+        sys.exit(2)
+    else:
+        logging.error('get_obs: Could not access queue')
+        sys.exit(1)
+
 df = pd.read_csv(output)
-# df.to_csv('scheduler_output.csv',index=False)
 
 if len(df) == 0:
-    print('No observations scheduled... sorry.')
-    exit(0)
+    logging.error('get_obs: No observations scheduled... sorry.')
+    sys.exit(2)
 
 row = df.iloc[0]
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
+for col in required_columns:
+    if col not in df.columns:
+        logging.error(f'get_obs: {col} not present in queue request')
+        sys.exit(5)
 
 fid = open(outfile, 'w')
 now = Time.now()
@@ -98,8 +123,8 @@ dec_rate = 0
 print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
 print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
 print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-print('REQUEST_ID=%s' % requestID, file=fid, flush=True)
-print('COMMENT=%s' % row["request_id"], file=fid, flush=True)
+print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
+print('COMMENT=%s' % requestID, file=fid, flush=True)
 print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
 print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
 print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
@@ -111,5 +136,11 @@ print('FILTER=%s' % row["filter"], file=fid, flush=True)
 print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
 
-cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
-os.system(cp_command)
+# Checking if the saved queue_target.dat has the correct request_id
+if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
+    logging.error('get_obs: Error in saving queue_target.dat')
+    sys.exit(6)
+
+#cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
+#os.system(cp_command)
+sys.exit(0)
