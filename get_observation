@@ -111,6 +111,8 @@ for col in required_columns:
     if col not in df.columns:
         logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
+filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z'}
+filt = filternames[row["filter"]]
 
 fid = open(outfile, 'w')
 now = Time.now()
@@ -132,7 +134,7 @@ print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
 print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
 print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
 print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
-print('FILTER=%s' % row["filter"], file=fid, flush=True)
+print('FILTER=%s' % filt, file=fid, flush=True)
 print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
 
