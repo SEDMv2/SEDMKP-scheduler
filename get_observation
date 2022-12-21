@@ -111,7 +111,8 @@ for col in required_columns:
     if col not in df.columns:
         logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
-filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z'}
+filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
+              'IFU':'FILTER_IFU'}
 filt = filternames[row["filter"]]
 
 fid = open(outfile, 'w')
