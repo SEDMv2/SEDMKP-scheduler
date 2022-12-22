@@ -80,8 +80,8 @@ logging.info(f'get_obs: Found instrument id {instrument_id}')
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'observationStartDate': str(Time.now() + TimeDelta(12 * u.hour)),
-          'observationEndDate': str(Time.now() + TimeDelta(24 * u.hour)),
+params = {'observationStartDate': str(Time.now()),
+          'observationEndDate': str(Time.now() + TimeDelta(12 * u.hour)),
           'status': 'submitted',
           'output_format': 'csv'}
 
