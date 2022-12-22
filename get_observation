@@ -114,13 +114,15 @@ for col in required_columns:
 filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
               'IFU':'FILTER_IFU'}
 filt = filternames[row["filter"]]
-
+if filt == 'FILTER_IFU':
+    mode = 0
+else:
+    mode = 5
 fid = open(outfile, 'w')
 now = Time.now()
 gps = now.gps
 requestID = "%s_%d" % (row["object_id"], gps)
 mag = 99
-mode = 0
 ra_rate = 0
 dec_rate = 0
 print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
