@@ -105,67 +105,92 @@ if len(df) == 0:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
 
-row = df.iloc[0]
-required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
-for col in required_columns:
-    if col not in df.columns:
-        logging.error(f'get_obs: {col} not present in queue request')
-        sys.exit(5)
-filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
-              'IFU':'FILTER_IFU'}
-filt = filternames[row["filter"]]
-if filt == 'FILTER_IFU':
-    mode = 0
+standard = True
+if not standard:
+    row = df.iloc[0]
+    required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
+    for col in required_columns:
+        if col not in df.columns:
+            logging.error(f'get_obs: {col} not present in queue request')
+            sys.exit(5)
+    filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
+                  'IFU':'FILTER_IFU'}
+    filt = filternames[row["filter"]]
+    if filt == 'FILTER_IFU':
+        mode = 0
+    else:
+        mode = 5
+    fid = open(outfile, 'w')
+    now = Time.now()
+    gps = now.gps
+    requestID = "%s_%d" % (row["object_id"], gps)
+    mag = 99
+    ra_rate = 0
+    dec_rate = 0
+    print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
+    print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
+    print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
+    print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
+    print('COMMENT=%s' % requestID, file=fid, flush=True)
+    print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
+    print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
+    print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
+    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+    print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+    print('FILTER=%s' % filt, file=fid, flush=True)
+    print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
+    fid.close()
+
+    # Checking if the saved queue_target.dat has the correct request_id
+    if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
+        logging.error('get_obs: Error in saving queue_target.dat')
+        sys.exit(6)
+
+    # Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
+    endpoint = f'followup_request/{row["request_id"]}'
+    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    response = session.request('GET', url, params=None, headers=headers).json()
+
+    if 'error' in response['status'] or response['data']=={}:
+        logging.error('get_obs: Could not query the request, check request_id')
+    #     sys.exit(1)
+
+    params = {'allocation_id': response['data']['allocation_id'],
+              'obj_id': response['data']['obj_id'],
+              'status': "ongoing"}
+    response = session.request('PUT', url, json=params, headers=headers).json()
+    if response['status']=="success":
+        logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
+    #     exit(0)
+    else:
+        logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
+        logging.info(response['message'])
+    #     exit(1)
 else:
-    mode = 5
-fid = open(outfile, 'w')
-now = Time.now()
-gps = now.gps
-requestID = "%s_%d" % (row["object_id"], gps)
-mag = 99
-ra_rate = 0
-dec_rate = 0
-print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
-print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
-print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
-print('COMMENT=%s' % requestID, file=fid, flush=True)
-print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
-print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
-print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
-print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
-print('FILTER=%s' % filt, file=fid, flush=True)
-print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
-fid.close()
-
-# Checking if the saved queue_target.dat has the correct request_id
-if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
-    logging.error('get_obs: Error in saving queue_target.dat')
-    sys.exit(6)
-
-# Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
-endpoint = f'followup_request/{row["request_id"]}'
-url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-response = session.request('GET', url, params=None, headers=headers).json()
-
-if 'error' in response['status'] or response['data']=={}:
-    logging.error('get_obs: Could not query the request, check request_id')
-#     sys.exit(1)
-    
-params = {'allocation_id': response['data']['allocation_id'],
-          'obj_id': response['data']['obj_id'],
-          'status': "ongoing"}
-response = session.request('PUT', url, json=params, headers=headers).json()
-if response['status']=="success":
-    logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
-#     exit(0)
-else:
-    logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
-    logging.info(response['message'])
-#     exit(1)
+    fid = open(outfile, 'w')
+    now = Time.now()
+    gps = now.gps
+    requestID = "%s_%d" % ("G191-B2B", gps)
+    mag = 99
+    ra_rate = 0
+    dec_rate = 0
+    print('PROGRAM_PI=%s' % "cal", file=fid, flush=True)
+    print('PROGRAM_ID=%s' % "None", file=fid, flush=True)
+    print('OBJECT_ID=%s' % "G191-B2B", file=fid, flush=True)
+    print('REQUEST_ID=%s' % "None", file=fid, flush=True)
+    print('COMMENT=%s' % requestID, file=fid, flush=True)
+    print('OBJ_RA=%s' % "05:05:30.6180977592", file=fid, flush=True)
+    print('OBJ_DEC=%s' % "+52:49:51.919301604", file=fid, flush=True)
+    print('EQUINOX=%.2f' % 2000, file=fid, flush=True)
+    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+    print('EXPTIME=%d' % 600, file=fid, flush=True)
+    print('FILTER=%s' % "FILTER_IFU", file=fid, flush=True)
+    print('CAMERA_MODE=%d' % 0, file=fid, flush=True)
+    fid.close()    
 
 #cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
 #os.system(cp_command)
