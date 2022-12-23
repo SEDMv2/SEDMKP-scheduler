@@ -146,6 +146,27 @@ if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_
     logging.error('get_obs: Error in saving queue_target.dat')
     sys.exit(6)
 
+# Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
+endpoint = f'followup_request/{row["request_id"]}'
+url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+response = session.request('GET', url, params=None, headers=headers).json()
+
+if 'error' in response['status'] or response['data']=={}:
+    logging.error('get_obs: Could not query the request, check request_id')
+#     sys.exit(1)
+    
+params = {'allocation_id': response['data']['allocation_id'],
+          'obj_id': response['data']['obj_id'],
+          'status': "ongoing"}
+response = session.request('PUT', url, json=params, headers=headers).json()
+if response['status']=="success":
+    logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
+#     exit(0)
+else:
+    logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
+    logging.info(response['message'])
+#     exit(1)
+
 #cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
 #os.system(cp_command)
 sys.exit(0)
