@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 
-import os, sys
+import os, sys, glob
 import optparse
 import requests
 import urllib
+import pandas as pd
+import numpy as np
+import logging
+from io import StringIO
+
 from astropy.time import Time, TimeDelta
 import astropy.units as u
-import pandas as pd
-import glob
-import logging
+from astroplan import Observer, FixedTarget, AltitudeConstraint, AirmassConstraint, AtNightConstraint, observability_table
+from astropy.coordinates import SkyCoord
 
-from io import StringIO
 
 
 def parse_commandline():
@@ -26,13 +29,38 @@ def parse_commandline():
 #     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
 #                       help="Requests folder path where top request from scheduler is sent")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
-    parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
-    parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
+    # parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
+    # parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
 
     opts, args = parser.parse_args()
 
     return opts
 
+def get_standard_star():
+    stdf = pd.read_csv('../SEDMv2/list_of_standards.txt')
+    targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
+                           name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
+    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2),
+                   AtNightConstraint.twilight_astronomical()]
+    loc = Observer.at_site('Kitt Peak')
+    time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
+    airmass = loc.altaz(time=Time.now(), target=targets).secz
+    table = observability_table(constraints, loc, targets, time_range=time_range)
+    stdf['airmass'] = airmass
+    stdf['frac_obs'] = table['fraction of time observable']
+    topstd = stdf[stdf['frac_obs'] > 0.5].sort_values('airmass').reset_index(drop=True).iloc[0]
+    return topstd
+
+def is_standard_done():
+    if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
+        return False
+    else:
+        logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
+        if 'standard' in np.array(logdf['object_type']):
+            return True
+        else:
+            return False
+            
 opts = parse_commandline()
 
 logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
@@ -40,17 +68,6 @@ logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 # Parse command line
 outfile = f'{opts.queuePath}/{opts.outfile}'
-
-# outputDir = opts.outputDir
-# if not os.path.isdir(outputDir):
-#     os.makedirs(outputDir)
-
-if opts.doTime:
-    tstart = Time(opts.tstart)
-    tend = Time(opts.tend)
-else:
-    tstart = Time.now()
-    tend = Time.now() + TimeDelta(12 * u.hour)
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
@@ -80,8 +97,8 @@ logging.info(f'get_obs: Found instrument id {instrument_id}')
 
 endpoint = f'followup_request/schedule/{instrument_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'observationStartDate': str(Time.now()),
-          'observationEndDate': str(Time.now() + TimeDelta(12 * u.hour)),
+params = {'observationStartDate': str(start_date),
+          'observationEndDate': str(end_date),
           'status': 'submitted',
           'output_format': 'csv'}
 
@@ -105,58 +122,71 @@ if len(df) == 0:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
 
-standard = True
-if not standard:
+loc = Observer.at_site('Kitt Peak')
+eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
+morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
+
+if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done):
+    row = get_standard_star()
+    doing_standard = True
+    objtype = "standard"
+elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done):
+    row = get_standard_star()
+    doing_standard = True
+    objtype = "standard"
+else:
     row = df.iloc[0]
-    required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
-    for col in required_columns:
-        if col not in df.columns:
-            logging.error(f'get_obs: {col} not present in queue request')
-            sys.exit(5)
-    filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
-                  'IFU':'FILTER_IFU'}
-    filt = filternames[row["filter"]]
-    if filt == 'FILTER_IFU':
-        mode = 0
-    else:
-        mode = 5
-    fid = open(outfile, 'w')
-    now = Time.now()
-    gps = now.gps
-    requestID = "%s_%d" % (row["object_id"], gps)
-    mag = 99
-    ra_rate = 0
-    dec_rate = 0
-    print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
-    print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
-    print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-    print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
-    print('COMMENT=%s' % requestID, file=fid, flush=True)
-    print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
-    print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
-    print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
-    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-    print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
-    print('FILTER=%s' % filt, file=fid, flush=True)
-    print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
-    fid.close()
+    doing_standard = False
+    objtype = "science"
 
-    # Checking if the saved queue_target.dat has the correct request_id
-    if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
-        logging.error('get_obs: Error in saving queue_target.dat')
-        sys.exit(6)
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
+for col in required_columns:
+    if col not in df.columns:
+        logging.error(f'get_obs: {col} not present in queue request')
+        sys.exit(5)
+filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
+              'IFU':'FILTER_IFU'}
+filt = filternames[row["filter"]]
+if filt == 'FILTER_IFU':
+    mode = 0
+else:
+    mode = 5
+fid = open(outfile, 'w')
+now = Time.now()
+gps = now.gps
+requestID = "%s_%d" % (row["object_id"], gps)
+mag = 99
+ra_rate = 0
+dec_rate = 0
+print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
+print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
+print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
+print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
+print('COMMENT=%s' % requestID, file=fid, flush=True)
+print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
+print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
+print('EQUINOX=%.2f' % row["epoch"], file=fid, flush=True)
+print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+print('FILTER=%s' % filt, file=fid, flush=True)
+print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
+fid.close()
 
-    # Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
+# Checking if the saved queue_target.dat has the correct request_id
+if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
+    logging.error('get_obs: Error in saving queue_target.dat')
+    sys.exit(6)
+
+# Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
+if not doing_standard:
     endpoint = f'followup_request/{row["request_id"]}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     response = session.request('GET', url, params=None, headers=headers).json()
-
     if 'error' in response['status'] or response['data']=={}:
         logging.error('get_obs: Could not query the request, check request_id')
     #     sys.exit(1)
-
     params = {'allocation_id': response['data']['allocation_id'],
               'obj_id': response['data']['obj_id'],
               'status': "ongoing"}
@@ -168,29 +198,43 @@ if not standard:
         logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
         logging.info(response['message'])
     #     exit(1)
+
+## Add object in daily requests log
+if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
+    logdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
+                         data=[])
+    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
 else:
-    fid = open(outfile, 'w')
-    now = Time.now()
-    gps = now.gps
-    requestID = "%s_%d" % ("G191-B2B", gps)
-    mag = 99
-    ra_rate = 0
-    dec_rate = 0
-    print('PROGRAM_PI=%s' % "cal", file=fid, flush=True)
-    print('PROGRAM_ID=%s' % "None", file=fid, flush=True)
-    print('OBJECT_ID=%s' % "G191-B2B", file=fid, flush=True)
-    print('REQUEST_ID=%s' % "None", file=fid, flush=True)
-    print('COMMENT=%s' % requestID, file=fid, flush=True)
-    print('OBJ_RA=%s' % "05:05:30.6180977592", file=fid, flush=True)
-    print('OBJ_DEC=%s' % "+52:49:51.919301604", file=fid, flush=True)
-    print('EQUINOX=%.2f' % 2000, file=fid, flush=True)
-    print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-    print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-    print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-    print('EXPTIME=%d' % 600, file=fid, flush=True)
-    print('FILTER=%s' % "FILTER_IFU", file=fid, flush=True)
-    print('CAMERA_MODE=%d' % 0, file=fid, flush=True)
-    fid.close()    
+    logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
+    tempdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
+                          data=[row["object_id"],row["request_id"],row["ra"],row["dec"],row["exposure_time"],filt,mode,
+                                objtype])
+    logdf = logdf.append(tempdf).reset_index(drop=True)
+    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
+
+# else:
+#     fid = open(outfile, 'w')
+#     now = Time.now()
+#     gps = now.gps
+#     requestID = "%s_%d" % ("HD1239", gps)
+#     mag = 99
+#     ra_rate = 0
+#     dec_rate = 0
+#     print('PROGRAM_PI=%s' % "cal", file=fid, flush=True)
+#     print('PROGRAM_ID=%s' % "None", file=fid, flush=True)
+#     print('OBJECT_ID=%s' % "HD1239", file=fid, flush=True)
+#     print('REQUEST_ID=%s' % "None", file=fid, flush=True)
+#     print('COMMENT=%s' % requestID, file=fid, flush=True)
+#     print('OBJ_RA=%s' % "00:16:57.0431385504", file=fid, flush=True)
+#     print('OBJ_DEC=%s' % "+61:31:59.468659896", file=fid, flush=True)
+#     print('EQUINOX=%.2f' % 2000, file=fid, flush=True)
+#     print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
+#     print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
+#     print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
+#     print('EXPTIME=%d' % 20, file=fid, flush=True)
+#     print('FILTER=%s' % "FILTER_IFU", file=fid, flush=True)
+#     print('CAMERA_MODE=%d' % 0, file=fid, flush=True)
+#     fid.close()
 
 #cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
 #os.system(cp_command)
