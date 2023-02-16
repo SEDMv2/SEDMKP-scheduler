@@ -36,8 +36,8 @@ def parse_commandline():
 
     return opts
 
-def get_standard_star():
-    stdf = pd.read_csv('../SEDMv2/list_of_standards.txt')
+def get_standard_star(queuepath):
+    stdf = pd.read_csv(f'{queuepath}/list_of_standards.txt')
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
     constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2),
@@ -51,11 +51,11 @@ def get_standard_star():
     topstd = stdf[stdf['frac_obs'] > 0.5].sort_values('airmass').reset_index(drop=True).iloc[0]
     return topstd
 
-def is_standard_done():
-    if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
+def is_standard_done(queuepath):
+    if glob.glob(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
         return False
     else:
-        logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
+        logdf = pd.read_csv(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
         if 'standard' in np.array(logdf['object_type']):
             return True
         else:
@@ -126,12 +126,12 @@ loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
 morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
 
-if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done):
-    row = get_standard_star()
+if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath)):
+    row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "standard"
-elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done):
-    row = get_standard_star()
+elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath)):
+    row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "standard"
 else:
