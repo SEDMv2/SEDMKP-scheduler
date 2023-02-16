@@ -48,15 +48,18 @@ def get_standard_star(queuepath):
     table = observability_table(constraints, loc, targets, time_range=time_range)
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
-    topstd = stdf[stdf['frac_obs'] > 0.5].sort_values('airmass').reset_index(drop=True).iloc[0]
-    return topstd
+    topstds = stdf[stdf['frac_obs'] > 0.5].sort_values('airmass').reset_index(drop=True)
+    if len(topstds)==0:
+        return None
+    else:
+        return topstds.iloc[0]
 
-def is_standard_done(queuepath):
+def is_standard_done(queuepath,which='morning'):
     if glob.glob(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
         return False
     else:
         logdf = pd.read_csv(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
-        if 'standard' in np.array(logdf['object_type']):
+        if f'{which}_standard' in np.array(logdf['object_type']):
             return True
         else:
             return False
@@ -129,14 +132,14 @@ loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
 morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
 
-if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath)):
+if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath, which='evening')):
     row = get_standard_star(opts.queuePath)
     doing_standard = True
-    objtype = "standard"
-elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath)):
+    objtype = "evening_standard"
+elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath, which='morning')):
     row = get_standard_star(opts.queuePath)
     doing_standard = True
-    objtype = "standard"
+    objtype = "morning_standard"
 elif target_returned:
     row = df.iloc[0]
     doing_standard = False
@@ -144,8 +147,11 @@ elif target_returned:
 elif not target_returned:
     row = get_standard_star(opts.queuePath)
     doing_standard = True
-    objtype = "standard"
+    objtype = "filler_standard"
 else:
+    logging.error('get_obs: No observations scheduled... sorry.')
+    sys.exit(2)
+if row is None:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
 
