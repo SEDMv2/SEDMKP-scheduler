@@ -102,6 +102,7 @@ params = {'observationStartDate': str(start_date),
           'status': 'submitted',
           'output_format': 'csv'}
 
+target_returned = False
 logging.info('get_obs: Making request now')
 response = session.request(method, url, params=params, headers=headers)
 
@@ -111,16 +112,18 @@ logging.info(output_string)
 if 'error' in output_string:
     if 'Need at least one observation to schedule' in output_string:
         logging.error('get_obs: No observations scheduled... sorry.')
-        sys.exit(2)
+        # sys.exit(2)
     else:
         logging.error('get_obs: Could not access queue')
-        sys.exit(1)
+        # sys.exit(1)
 
 df = pd.read_csv(output)
 
 if len(df) == 0:
     logging.error('get_obs: No observations scheduled... sorry.')
-    sys.exit(2)
+    # sys.exit(2)
+else:
+    target_returned = True
 
 loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
@@ -134,10 +137,17 @@ elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done(op
     row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "standard"
-else:
+elif target_returned:
     row = df.iloc[0]
     doing_standard = False
     objtype = "science"
+elif not target_returned:
+    row = get_standard_star(opts.queuePath)
+    doing_standard = True
+    objtype = "standard"
+else:
+    logging.error('get_obs: No observations scheduled... sorry.')
+    sys.exit(2)
 
 required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
 for col in required_columns:
