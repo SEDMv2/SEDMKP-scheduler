@@ -55,20 +55,23 @@ def get_standard_star(queuepath):
         return topstds.iloc[0]
 
 def is_standard_done(queuepath,which='morning'):
-    if glob.glob(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
-        return False
+    logdf = pd.read_csv(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
+    if f'{which}_standard' in np.array(logdf['object_type']):
+        return True
     else:
-        logdf = pd.read_csv(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
-        if f'{which}_standard' in np.array(logdf['object_type']):
-            return True
-        else:
-            return False
+        return False
             
 opts = parse_commandline()
 
 logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+
+if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
+    logdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
+                         data=[])
+    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
+
 # Parse command line
 outfile = f'{opts.queuePath}/{opts.outfile}'
 
@@ -126,6 +129,7 @@ if len(df) == 0:
     logging.error('get_obs: No observations scheduled... sorry.')
     # sys.exit(2)
 else:
+    logging.info(f'get_obs: Target returned {len(df)}')
     target_returned = True
 
 loc = Observer.at_site('Kitt Peak')
@@ -148,6 +152,7 @@ elif not target_returned:
     row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "filler_standard"
+    logging.info('get_obs: returning filler standard')
 else:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
@@ -157,7 +162,7 @@ if row is None:
 
 required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
 for col in required_columns:
-    if col not in df.columns:
+    if col not in row.index:
         logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
 filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
@@ -220,13 +225,12 @@ if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') =
     logdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
                          data=[])
     logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
-else:
-    logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
-    tempdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
-                          data=[row["object_id"],row["request_id"],row["ra"],row["dec"],row["exposure_time"],filt,mode,
-                                objtype])
-    logdf = logdf.append(tempdf).reset_index(drop=True)
-    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
+
+logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
+tempdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
+                    data=[[row["object_id"],row["request_id"],row["ra"],row["dec"],row["exposure_time"],filt,mode,objtype]])
+logdf = pd.concat([logdf,tempdf],ignore_index=True)
+logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
 
 # else:
 #     fid = open(outfile, 'w')
