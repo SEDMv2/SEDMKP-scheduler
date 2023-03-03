@@ -8,6 +8,7 @@ import sys
 import glob
 import logging
 from astropy.time import Time
+import pandas as pd
 
 def parse_commandline():
     """
@@ -29,10 +30,13 @@ def parse_commandline():
 # Parse command line
 opts, args = parse_commandline()
 
-logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
+logging.basicConfig(filename=f'{opts.queuePath}/logs/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
+requests_filepath = f'{opts.queuePath}/requests/requests_{Time.now().strftime("%Y%m%d")}.csv'
+
+# ROS supplies args not opts, load them
 if opts.request_id is None or opts.status is None:
     if len(args)==2:
         opts.request_id = args[1]
@@ -41,6 +45,7 @@ if opts.request_id is None or opts.status is None:
         logging.error('obs_stat: No request_id and status supplied, exiting')
         exit(1)
 
+# Load token for fritz query
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
 elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
@@ -53,29 +58,35 @@ else:
     
 session = requests.Session()
 
+# Check status input from ROS
 status = {'0': "Completed", '1': "Failed", '2': "Skipped"}
 if opts.status not in status.keys():
     logging.error('obs_stat: Invalid status, exiting')
     exit(1)
 
+# Query fritz using request_id arg to get rest of the request params
 endpoint = f'followup_request/{opts.request_id}'
 url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 response = session.request('GET', url, params=None, headers=headers).json()
-
 if 'error' in response['status'] or response['data']=={}:
     logging.error('obs_stat: Could not query the request, check request_id')
     exit(1)
 
+# Use the obtained request params to edit the request
 params = {'allocation_id': response['data']['allocation_id'],
           'obj_id': response['data']['obj_id'],
           'status': status[opts.status]}
-
 response = session.request('PUT', url, json=params, headers=headers).json()
 if response['status']=="success":
     logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
+    # Update the local requests log file
+    logdf = pd.read_csv(requests_filepath)
+    logdf.loc[logdf['request_id']==opts.request_id]['status'] = 'completed'
     exit(0)
 else:
     logging.error(f'obs_stat: Error in updating request {opts.request_id}')
     logging.info(response['message'])
+    # Update the local requests log file
+    logdf = pd.read_csv(requests_filepath)
+    logdf.loc[logdf['request_id']==opts.request_id]['status'] = 'failed'
     exit(1)
-
