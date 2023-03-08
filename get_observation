@@ -69,7 +69,7 @@ def is_standard_done(requests_filepath, which='morning'):
     """
     logdf = pd.read_csv(requests_filepath)
     req_row = logdf[logdf['object_type'] == f'{which}_standard'].reset_index(drop=True)
-    if len(req_row) == 0 or req_row['status'][0] == 'ongoing' or req_row['status'][0] == 'failed':
+    if len(req_row) == 0 or req_row['status'][-1] == 'ongoing' or req_row['status'][-1] == 'failed':
         return False
     else:
         return True
@@ -246,7 +246,7 @@ logdf = pd.read_csv(requests_filepath)
 tempdf = pd.DataFrame(
     columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type','status'],
     data=[[row["object_id"], row["request_id"], row["ra"], row["dec"], row["exposure_time"], filt, mode, objtype, 'ongoing']])
-logdf = pd.concat([logdf, tempdf], ignore_index=True)
-logdf.to_csv(requests_filepath, index=False)
+# logdf = pd.concat([logdf, tempdf], ignore_index=True)
+logdf.to_csv(requests_filepath, mode='a', header=False, index=False)
 
 sys.exit(0)
