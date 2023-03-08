@@ -57,7 +57,7 @@ def get_standard_star(queuepath):
     if len(topstds) == 0:
         return False, None
     else:
-        topstds.iloc[0]['request_id'] = 'cal'+str(randint(100,999))
+        topstds.loc[0]['request_id'] = 'cal'+str(randint(100,999))
         return True, topstds.iloc[0]
 
 def is_standard_done(requests_filepath, which='morning'):
