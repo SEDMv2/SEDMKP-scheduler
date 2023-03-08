@@ -92,7 +92,7 @@ outfile = f'{opts.queuePath}/{opts.outfile}'
 # Create requests file, create if not present
 if glob.glob(requests_filepath) == []:
     logdf = pd.DataFrame(
-        columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type'],
+        columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type', 'status'],
         data=[])
     logdf.to_csv(requests_filepath, index=False)
 
