@@ -46,7 +46,7 @@ def get_standard_star(queuepath):
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
     constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2),
-                   AtNightConstraint.twilight_astronomical(), MoonSeparationConstraint(min=20)]
+                   AtNightConstraint.twilight_astronomical()]
     loc = Observer.at_site('Kitt Peak')
     time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
     airmass = loc.altaz(time=Time.now(), target=targets).secz
