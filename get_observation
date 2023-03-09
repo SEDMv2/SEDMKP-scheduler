@@ -46,7 +46,8 @@ def get_standard_star(queuepath):
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
     constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2),
-                   AtNightConstraint.twilight_astronomical(), MoonSeparationConstraint(min=30*u.deg)]
+                   MoonSeparationConstraint(min=30*u.deg),
+                   AtNightConstraint.twilight_astronomical()]
     loc = Observer.at_site('Kitt Peak')
     time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
     airmass = loc.altaz(time=Time.now(), target=targets).secz
@@ -69,7 +70,7 @@ def is_standard_done(requests_filepath, which='morning'):
     """
     logdf = pd.read_csv(requests_filepath)
     req_row = list(logdf[logdf['object_type'] == f'{which}_standard']['status'])
-    if len(req_row) == 0 or req_row[-1] == 'ongoing' or req_row[-1] == 'failed':
+    if len(req_row) == 0 or req_row[-1] == 'failed':
         return False
     else:
         return True
