@@ -81,12 +81,12 @@ if response['status']=="success":
     logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
     # Update the local requests log file
     logdf = pd.read_csv(requests_filepath)
-    logdf.loc[logdf['request_id']==opts.request_id]['status'] = 'completed'
+    logdf.loc[logdf['request_id']==opts.request_id,'status'] = 'completed'
     exit(0)
 else:
     logging.error(f'obs_stat: Error in updating request {opts.request_id}')
     logging.info(response['message'])
     # Update the local requests log file
     logdf = pd.read_csv(requests_filepath)
-    logdf.loc[logdf['request_id']==opts.request_id]['status'] = 'failed'
+    logdf.loc[logdf['request_id']==opts.request_id,'status'] = 'failed'
     exit(1)
