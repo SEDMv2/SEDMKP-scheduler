@@ -247,7 +247,7 @@ logdf = pd.read_csv(requests_filepath)
 tempdf = pd.DataFrame(
     columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type','status'],
     data=[[row["object_id"], row["request_id"], row["ra"], row["dec"], row["exposure_time"], filt, mode, objtype, 'ongoing']])
-# logdf = pd.concat([logdf, tempdf], ignore_index=True)
-logdf.to_csv(requests_filepath, mode='a', header=False, index=False)
+logdf = pd.concat([logdf, tempdf], ignore_index=True)
+logdf.to_csv(requests_filepath, index=False)
 
 sys.exit(0)
