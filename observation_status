@@ -82,6 +82,7 @@ if response['status']=="success":
     # Update the local requests log file
     logdf = pd.read_csv(requests_filepath)
     logdf.loc[logdf['request_id']==opts.request_id,'status'] = 'completed'
+    logdf.to_csv(requests_filepath,index=False)
     exit(0)
 else:
     logging.error(f'obs_stat: Error in updating request {opts.request_id}')
@@ -89,4 +90,5 @@ else:
     # Update the local requests log file
     logdf = pd.read_csv(requests_filepath)
     logdf.loc[logdf['request_id']==opts.request_id,'status'] = 'failed'
+    logdf.to_csv(requests_filepath, index=False)
     exit(1)
