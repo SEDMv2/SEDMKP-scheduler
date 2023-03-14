@@ -79,6 +79,49 @@ def is_standard_done(requests_filepath, which='morning'):
     else:
        return True
 
+def query_schedule():
+    method = 'GET'
+    # Time range for fritz scheduler query
+    start_date = Time.now()
+    end_date = Time.now() + TimeDelta(12 * u.hour)
+
+    session = requests.Session()
+    # Find instrument id for SEDMv2 (hard coding to speed up things)
+    instrument_id = 1078
+    # endpoint = 'instrument'
+    # url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    # response = session.request(method, url, headers=headers)
+    # for instrument in response.json()["data"]:
+    #     if instrument["name"] == "SEDMv2":
+    #         instrument_id = instrument["id"]
+    #         break
+    # logging.info(f'get_obs: Found instrument id {instrument_id}')
+
+    # Query schedule
+    endpoint = f'followup_request/schedule/{instrument_id}'
+    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    params = {'observationStartDate': str(start_date),
+              'observationEndDate': str(end_date),
+              'status': 'submitted',
+              'output_format': 'csv'}
+    target_returned = False
+    logging.info('get_obs: Making request now')
+    response = session.request(method, url, params=params, headers=headers)
+    output_string = response.content.decode('utf-8')
+    output = StringIO(output_string)
+    logging.info(output_string)
+    if 'error' in output_string:
+        if 'Need at least one observation to schedule' in output_string:
+            logging.error('get_obs: No observations scheduled... sorry.')
+        else:
+            logging.error('get_obs: Could not access queue')
+    df = pd.read_csv(output)
+    if len(df) == 0:
+        logging.error('get_obs: No observations scheduled... sorry.')
+    else:
+        logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
+        target_returned = True
+    return target_returned, df
 
 opts = parse_commandline()
 
@@ -98,6 +141,7 @@ if glob.glob(requests_filepath) == []:
     logdf.to_csv(requests_filepath, index=False)
 
 # Load token for fritz
+global headers
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
 elif len(glob.glob(f'{opts.queuePath}/token.txt')) != 0:
@@ -108,78 +152,34 @@ else:
     logging.error('get_obs: Token not found, cannot access queue')
     sys.exit(1)
 
-method = 'GET'
-# Time range for fritz scheduler query
-start_date = Time.now()
-end_date = Time.now() + TimeDelta(12 * u.hour)
-
-session = requests.Session()
-
-# Find instrument id for SEDMv2 (hard coding to speed up things)
-instrument_id = 1078
-# endpoint = 'instrument'
-# url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-# response = session.request(method, url, headers=headers)
-# for instrument in response.json()["data"]:
-#     if instrument["name"] == "SEDMv2":
-#         instrument_id = instrument["id"]
-#         break
-# logging.info(f'get_obs: Found instrument id {instrument_id}')
-
-# Query schedule
-endpoint = f'followup_request/schedule/{instrument_id}'
-url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'observationStartDate': str(start_date),
-          'observationEndDate': str(end_date),
-          'status': 'submitted',
-          'output_format': 'csv'}
-target_returned = False
-logging.info('get_obs: Making request now')
-response = session.request(method, url, params=params, headers=headers)
-output_string = response.content.decode('utf-8')
-output = StringIO(output_string)
-logging.info(output_string)
-if 'error' in output_string:
-    if 'Need at least one observation to schedule' in output_string:
-        logging.error('get_obs: No observations scheduled... sorry.')
-        # sys.exit(2)
-    else:
-        logging.error('get_obs: Could not access queue')
-        # sys.exit(1)
-df = pd.read_csv(output)
-if len(df) == 0:
-    logging.error('get_obs: No observations scheduled... sorry.')
-    # sys.exit(2)
-else:
-    logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
-    target_returned = True
-
 # Choose between science and standard observation
 loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
 morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
 
 doing_standard, row, objtype = False, None, None
-if (Time.now() < eve_twil + TimeDelta(12 * u.hour)) and (not is_standard_done(requests_filepath, which='evening')):
+if (Time.now() < eve_twil + TimeDelta(2 * u.hour)) and (not is_standard_done(requests_filepath, which='evening')):
     standard_returned, row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "evening_standard"
-elif (Time.now() > morn_twil - TimeDelta(2 * u.hour)) and (not is_standard_done(requests_filepath, which='morning')):
+elif (Time.now() > morn_twil - TimeDelta(1 * u.hour)) and (not is_standard_done(requests_filepath, which='morning')):
     standard_returned, row = get_standard_star(opts.queuePath)
     doing_standard = True
     objtype = "morning_standard"
-elif target_returned:
-    row = df.iloc[0]
-    doing_standard = False
-    objtype = "science"
-elif not target_returned:
-    standard_returned, row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "filler_standard"
-    logging.info('get_obs: returning filler standard')
-    if not standard_returned:
-        logging.error('get_obs: No observations scheduled... sorry.')
-        sys.exit(2)
+else:
+    target_returned, df = query_schedule()
+    if target_returned:
+        doing_standard = False
+        objtype = "science"
+        row = df.iloc[0]
+    else:
+        standard_returned, row = get_standard_star(opts.queuePath)
+        doing_standard = True
+        objtype = "filler_standard"
+        logging.info('get_obs: returning filler standard')
+        if not standard_returned:
+            logging.error('get_obs: No observations scheduled... sorry.')
+            sys.exit(2)
 if row is None:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
@@ -191,13 +191,28 @@ for col in required_columns:
         logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
 filternames = {'u': 'FILTER_SLOAN_U', 'g': 'FILTER_SLOAN_G', 'r': 'FILTER_SLOAN_R', 'i': 'FILTER_SLOAN_I',
-               'z': 'FILTER_SLOAN_Z',
-               'IFU': 'FILTER_IFU'}
+               'z': 'FILTER_SLOAN_Z', 'IFU': 'FILTER_IFU'}
 filt = filternames[row["filter"]]
 if filt == 'FILTER_IFU':
     mode = 0
 else:
-    mode = 5
+    if row["frame_exposure_time"] is not None:
+        if row["frame_exposure_time"] == 1.0:
+            mode = 1
+        elif row["frame_exposure_time"] == 2.0:
+            mode = 2
+        elif row["frame_exposure_time"] == 3.0:
+            mode = 3
+        elif row["frame_exposure_time"] == 5.0:
+            mode = 4
+        elif row["frame_exposure_time"] == 10.0:
+            mode = 5
+        else:
+            logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
+            mode = 5
+    else:
+        mode = 5
+
 fid = open(outfile, 'w')
 now = Time.now()
 gps = now.gps
