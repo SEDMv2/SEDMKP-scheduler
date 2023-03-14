@@ -94,3 +94,8 @@ while (not updated) and count < 3:
         logging.error(f'obs_stat: Error in updating request {opts.request_id}')
         logging.info(f'obs_state: {response["message"]}')
     count = count + 1
+
+if updated:
+    exit(0)
+else:
+    exit(1)
