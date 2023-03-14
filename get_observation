@@ -193,23 +193,20 @@ for col in required_columns:
         sys.exit(5)
 filternames = {'u': 'FILTER_SLOAN_U', 'g': 'FILTER_SLOAN_G', 'r': 'FILTER_SLOAN_R', 'i': 'FILTER_SLOAN_I',
                'z': 'FILTER_SLOAN_Z', 'IFU': 'FILTER_IFU'}
+emccd_modes = {'1':1, '2':2, '3':3, '5':4, '10':5}
 filt = filternames[row["filter"]]
 if filt == 'FILTER_IFU':
     mode = 0
 else:
-    if not pd.isna(row["frame_exposure_time"]):
-        if row["frame_exposure_time"] == 1.0:
-            mode = 1
-        elif row["frame_exposure_time"] == 2.0:
-            mode = 2
-        elif row["frame_exposure_time"] == 3.0:
-            mode = 3
-        elif row["frame_exposure_time"] == 5.0:
-            mode = 4
-        elif row["frame_exposure_time"] == 10.0:
-            mode = 5
+    if "frame_exposure_time" in row.index:
+        if not pd.isna(row["frame_exposure_time"]):
+            fet = str(int(row["frame_exposure_time"]))
+            if fet in emccd_modes.keys():
+                mode = emccd_modes[fet]
+            else:
+                logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
+                mode = 5
         else:
-            logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
             mode = 5
     else:
         mode = 5
