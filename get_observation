@@ -74,7 +74,7 @@ def is_standard_done(requests_filepath, which='morning'):
     logdf = pd.read_csv(requests_filepath)
     req_row = list(logdf[logdf['object_type'] == f'{which}_standard']['status'])
     # return False
-    if len(req_row) == 0 or req_row[-1] == 'failed':
+    if len(req_row) == 0 or req_row[-1] == 'Failed':
        return False
     else:
        return True
