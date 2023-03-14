@@ -19,7 +19,7 @@ def parse_commandline():
                       help="Host url for skyportal instance, by default fritz")
     parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Path where queue scripts are")
     parser.add_option("-r", "--request_id", help="Request id to update")
-    parser.add_option("-s", "--status", help="Status of the request", type=int)
+    parser.add_option("-s", "--status", help="Status of the request", type=str)
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
 
     opts, args = parser.parse_args()
