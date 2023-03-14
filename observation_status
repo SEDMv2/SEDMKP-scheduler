@@ -69,6 +69,8 @@ logdf = pd.read_csv(requests_filepath)
 logdf.loc[logdf['request_id'] == opts.request_id, 'status'] = status[opts.status]
 logdf.to_csv(requests_filepath, index=False)
 
+if 'cal' in opts.request_id:
+    exit(0)
 # Query fritz using request_id arg to get rest of the request params
 updated = False
 count = 0
