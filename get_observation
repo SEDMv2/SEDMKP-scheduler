@@ -197,7 +197,7 @@ filt = filternames[row["filter"]]
 if filt == 'FILTER_IFU':
     mode = 0
 else:
-    if pd.isna(row["frame_exposure_time"]):
+    if not pd.isna(row["frame_exposure_time"]):
         if row["frame_exposure_time"] == 1.0:
             mode = 1
         elif row["frame_exposure_time"] == 2.0:
