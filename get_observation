@@ -79,13 +79,12 @@ def is_standard_done(requests_filepath, which='morning'):
     else:
        return True
 
-def query_schedule():
+def query_schedule(session):
     method = 'GET'
     # Time range for fritz scheduler query
     start_date = Time.now()
     end_date = Time.now() + TimeDelta(12 * u.hour)
 
-    session = requests.Session()
     # Find instrument id for SEDMv2 (hard coding to speed up things)
     instrument_id = 1078
     # endpoint = 'instrument'
@@ -152,6 +151,8 @@ else:
     logging.error('get_obs: Token not found, cannot access queue')
     sys.exit(1)
 
+session = requests.Session()
+
 # Choose between science and standard observation
 loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
@@ -196,7 +197,7 @@ filt = filternames[row["filter"]]
 if filt == 'FILTER_IFU':
     mode = 0
 else:
-    if row["frame_exposure_time"] is not None:
+    if pd.isna(row["frame_exposure_time"]):
         if row["frame_exposure_time"] == 1.0:
             mode = 1
         elif row["frame_exposure_time"] == 2.0:
