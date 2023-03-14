@@ -168,7 +168,7 @@ elif (Time.now() > morn_twil - TimeDelta(1 * u.hour)) and (not is_standard_done(
     doing_standard = True
     objtype = "morning_standard"
 else:
-    target_returned, df = query_schedule()
+    target_returned, df = query_schedule(session)
     if target_returned:
         doing_standard = False
         objtype = "science"
