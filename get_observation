@@ -161,12 +161,14 @@ morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
 doing_standard, row, objtype = False, None, None
 if (Time.now() < eve_twil + TimeDelta(2 * u.hour)) and (not is_standard_done(requests_filepath, which='evening')):
     standard_returned, row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "evening_standard"
+    if standard_returned:
+        doing_standard = True
+        objtype = "evening_standard"
 elif (Time.now() > morn_twil - TimeDelta(1 * u.hour)) and (not is_standard_done(requests_filepath, which='morning')):
     standard_returned, row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "morning_standard"
+    if standard_returned:
+        doing_standard = True
+        objtype = "morning_standard"
 elif not doing_standard:
     target_returned, df = query_schedule(session)
     if target_returned:
