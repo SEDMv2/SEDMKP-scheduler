@@ -169,7 +169,8 @@ elif (Time.now() > morn_twil - TimeDelta(1 * u.hour)) and (not is_standard_done(
     if standard_returned:
         doing_standard = True
         objtype = "morning_standard"
-elif not doing_standard:
+
+if not doing_standard:
     target_returned, df = query_schedule(session)
     if target_returned:
         doing_standard = False
