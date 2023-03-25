@@ -57,7 +57,7 @@ def get_standard_star(queuepath):
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
     topstds = stdf[stdf['frac_obs'] > 0.2].sort_values('airmass').reset_index(drop=True)
-    #topstds = stdf
+    logging.info(topstds)
     if len(topstds) == 0:
         return False, None
     else:
