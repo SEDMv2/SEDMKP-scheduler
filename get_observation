@@ -57,7 +57,7 @@ def get_standard_star(queuepath):
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
     topstds = stdf[stdf['frac_obs'] > 0.2].sort_values('airmass').reset_index(drop=True)
-    logging.info(topstds)
+    logging.info(topstds.head(3))
     if len(topstds) == 0:
         return False, None
     else:
@@ -111,12 +111,12 @@ def query_schedule(session):
     logging.info(output_string)
     if 'error' in output_string:
         if 'Need at least one observation to schedule' in output_string:
-            logging.error('get_obs: No observations scheduled... sorry.')
+            logging.error('get_obs: No observations to schedule')
         else:
             logging.error('get_obs: Could not access queue')
     df = pd.read_csv(output)
     if len(df) == 0:
-        logging.error('get_obs: No observations scheduled... sorry.')
+        logging.error('get_obs: No observations scheduled, length of table: 0')
     else:
         logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
         target_returned = True
@@ -157,6 +157,7 @@ session = requests.Session()
 loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
 morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
+morn_naut_twil = loc.twilight_morning_nautical(Time.now(), which='nearest')
 
 doing_standard, row, objtype = False, None, None
 if (Time.now() < eve_twil + TimeDelta(2 * u.hour)) and (not is_standard_done(requests_filepath, which='evening')):
@@ -164,26 +165,44 @@ if (Time.now() < eve_twil + TimeDelta(2 * u.hour)) and (not is_standard_done(req
     if standard_returned:
         doing_standard = True
         objtype = "evening_standard"
-elif (Time.now() > morn_twil - TimeDelta(1 * u.hour)) and (not is_standard_done(requests_filepath, which='morning')):
+        logging.info(f'get_obs: Doing {objtype}')
+elif (Time.now() > morn_twil) and (Time.now() < morn_naut_twil) and (not is_standard_done(requests_filepath, which='morning')):
     standard_returned, row = get_standard_star(opts.queuePath)
     if standard_returned:
         doing_standard = True
         objtype = "morning_standard"
+        logging.info(f'get_obs: Doing {objtype}')
 
 if not doing_standard:
+    doing_filler = False
     target_returned, df = query_schedule(session)
     if target_returned:
-        doing_standard = False
-        objtype = "science"
-        row = df.iloc[0]
+        for i in range(len(df)):
+            if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]+300) * u.sec) < morn_naut_twil:
+                doing_standard = False
+                objtype = "science"
+                row = df.iloc[i]
+                logging.info(f'get_obs: Doing {objtype}')
+                break
+            else:
+                logging.error('get_obs: Observation will exceed astronomical twilight end, checking next')
+                continue
+        if row is None:
+            doing_filler = True
     else:
-        standard_returned, row = get_standard_star(opts.queuePath)
+        doing_filler = True
+
+if doing_filler:
+    logging.info('get_obs: Filler flag true, getting a standard')
+    standard_returned, row = get_standard_star(opts.queuePath)
+    if standard_returned:
         doing_standard = True
         objtype = "filler_standard"
-        logging.info('get_obs: returning filler standard')
-        if not standard_returned:
-            logging.error('get_obs: No observations scheduled... sorry.')
-            sys.exit(2)
+        logging.info(f'get_obs: Doing {objtype}')
+    else:
+        logging.error('get_obs: No standard returned')
+        sys.exit(2)
+
 if row is None:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
