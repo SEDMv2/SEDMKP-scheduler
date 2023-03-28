@@ -248,6 +248,8 @@ if not doing_standard:
     endpoint = f'followup_request/{row["request_id"]}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     response = session.request('GET', url, params=None, headers=headers).json()
+    logging.info(f'get_obs: queried request {row["request_id"]}')
+    logging.info(response['data'])
     if 'error' in response['status'] or response['data'] == {}:
         logging.error('get_obs: Could not query the request, check request_id')
     params = {'allocation_id': response['data']['allocation_id'],
