@@ -253,7 +253,7 @@ if not doing_standard:
     params = {'allocation_id': response['data']['allocation_id'],
               'obj_id': response['data']['obj_id'],
               'status': "ongoing"}
-    response = session.request('PUT', url, json=params, headers=headers)
+    response = session.request('PUT', url, data=params, headers=headers).json()
     logging.info(response)
     if response['status'] == "success":
         logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
