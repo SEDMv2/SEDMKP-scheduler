@@ -72,30 +72,30 @@ logdf.to_csv(requests_filepath, index=False)
 if 'cal' in opts.request_id:
     exit(0)
 # Query fritz using request_id arg to get rest of the request params
-updated = False
+updated = True
 count = 0
-while (not updated) and count < 3:
-    endpoint = f'followup_request/{opts.request_id}'
-    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    response = session.request('GET', url, params=None, headers=headers).json()
-    if 'error' in response['status'] or response['data']=={}:
-        logging.error(f'obs_stat: Could not query the request, check request_id {opts.request_id}')
-        logging.error(f'obs_stat: {response["message"]}')
-        count = count + 1
-        continue
-
-    # Use the obtained request params to edit the request
-    params = {'allocation_id': response['data']['allocation_id'],
-              'obj_id': response['data']['obj_id'],
-              'status': status[opts.status]}
-    response = session.request('PUT', url, json=params, headers=headers).json()
-    if response['status']=="success":
-        logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
-        updated = True
-    else:
-        logging.error(f'obs_stat: Error in updating request {opts.request_id}')
-        logging.info(f'obs_state: {response["message"]}')
-    count = count + 1
+# while (not updated) and count < 3:
+#     endpoint = f'followup_request/{opts.request_id}'
+#     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+#     response = session.request('GET', url, params=None, headers=headers).json()
+#     if 'error' in response['status'] or response['data']=={}:
+#         logging.error(f'obs_stat: Could not query the request, check request_id {opts.request_id}')
+#         logging.error(f'obs_stat: {response["message"]}')
+#         count = count + 1
+#         continue
+#
+#     # Use the obtained request params to edit the request
+#     params = {'allocation_id': response['data']['allocation_id'],
+#               'obj_id': response['data']['obj_id'],
+#               'status': status[opts.status]}
+#     response = session.request('PUT', url, json=params, headers=headers).json()
+#     if response['status']=="success":
+#         logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
+#         updated = True
+#     else:
+#         logging.error(f'obs_stat: Error in updating request {opts.request_id}')
+#         logging.info(f'obs_state: {response["message"]}')
+#     count = count + 1
 
 if updated:
     exit(0)
