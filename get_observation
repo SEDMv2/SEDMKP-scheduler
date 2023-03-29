@@ -215,7 +215,7 @@ for col in required_columns:
         sys.exit(5)
 filternames = {'u': 'FILTER_SLOAN_U', 'g': 'FILTER_SLOAN_G', 'r': 'FILTER_SLOAN_R', 'i': 'FILTER_SLOAN_I',
                'z': 'FILTER_SLOAN_Z', 'IFU': 'FILTER_IFU'}
-emccd_modes = {'1':1, '2':2, '3':3, '5':4, '10':5, '15':6, '20':7, '25':8, '30':9}
+emccd_modes = {'1':1, '2':2, '3':3, '5':4, '10':5,}# '15':6, '20':7, '25':8, '30':9}
 filt = filternames[row["filter"]]
 if filt == 'FILTER_IFU':
     mode = 0
