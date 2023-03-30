@@ -173,8 +173,8 @@ elif (Time.now() > morn_twil) and (Time.now() < morn_naut_twil) and (not is_stan
         objtype = "morning_standard"
         logging.info(f'get_obs: Doing {objtype}')
 
+doing_filler = False
 if not doing_standard:
-    doing_filler = False
     target_returned, df = query_schedule(session)
     if target_returned:
         for i in range(len(df)):
