@@ -208,7 +208,7 @@ if row is None:
     sys.exit(2)
 
 # Save output file for ROS
-required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "observation_choice"]
 for col in required_columns:
     if col not in row.index:
         logging.error(f'get_obs: {col} not present in queue request')
@@ -216,7 +216,7 @@ for col in required_columns:
 filternames = {'u': 'FILTER_SLOAN_U', 'g': 'FILTER_SLOAN_G', 'r': 'FILTER_SLOAN_R', 'i': 'FILTER_SLOAN_I',
                'z': 'FILTER_SLOAN_Z', 'IFU': 'FILTER_IFU'}
 emccd_modes = {'1':1, '2':2, '3':3, '5':4, '10':5,}# '15':6, '20':7, '25':8, '30':9}
-filt = filternames[row["filter"]]
+filt = filternames[row["observation_choice"]]
 if filt == 'FILTER_IFU':
     mode = 0
     # logging.error(f'get_obs: Cannot handle IFU requests for now, exiting')
