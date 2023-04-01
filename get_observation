@@ -208,7 +208,7 @@ if row is None:
     sys.exit(2)
 
 # Save output file for ROS
-required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "observation_choice"]
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time"]
 for col in required_columns:
     if col not in row.index:
         logging.error(f'get_obs: {col} not present in queue request')
