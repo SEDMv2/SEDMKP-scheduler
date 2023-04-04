@@ -6,15 +6,17 @@ import requests
 import urllib
 import pandas as pd
 import numpy as np
+from random import randint
 import logging
 from io import StringIO
 
 from astropy.time import Time, TimeDelta
 import astropy.units as u
-from astroplan import Observer, FixedTarget, AltitudeConstraint, AirmassConstraint, AtNightConstraint, observability_table
+from astroplan import Observer, FixedTarget, AltitudeConstraint, AirmassConstraint, AtNightConstraint, \
+    observability_table, MoonSeparationConstraint
 from astropy.coordinates import SkyCoord
 
-
+global requests_filepath, outfile
 
 def parse_commandline():
     """
@@ -23,24 +25,30 @@ def parse_commandline():
     parser = optparse.OptionParser()
     parser.add_option("-w", "--host", default="https://fritz.science",
                       help="Host url for skyportal instance, by default fritz")
-    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Default path where queue scripts are")
+    parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2",
+                      help="Default path where queue scripts are")
     parser.add_option("-f", "--outfile", default="queue_target.dat", help="Output file name")
-#     parser.add_option("-o", "--outputDir", default="./", help="Output directory path")
-#     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
-#                       help="Requests folder path where top request from scheduler is sent")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
-    # parser.add_option("--doPlots", action="store_true", default=False, help="Make plots")
-    # parser.add_option("--doTime", action="store_true", default=False, help="Not implemented yet")
+    #     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
+    #                       help="Requests folder path where top request from scheduler is sent")
 
     opts, args = parser.parse_args()
-
     return opts
 
+
 def get_standard_star(queuepath):
+    """
+    From a list of standard stars, schedule one for Kitt Peak location in the next 2 hours, ordered by airmass.
+    :param queuepath:
+    :return: standard_available (bool), standard_request (pandas Series)
+    """
     stdf = pd.read_csv(f'{queuepath}/list_of_standards.txt')
+    #stdf = stdf[stdf['object_id']=='STD-Feige34    '].reset_index(drop=True)
+    #print(stdf)
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
-    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2),
+    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.5),
+                   MoonSeparationConstraint(min=30*u.deg),
                    AtNightConstraint.twilight_astronomical()]
     loc = Observer.at_site('Kitt Peak')
     time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
@@ -48,33 +56,94 @@ def get_standard_star(queuepath):
     table = observability_table(constraints, loc, targets, time_range=time_range)
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
-    topstds = stdf[stdf['frac_obs'] > 0.5].sort_values('airmass').reset_index(drop=True)
-    if len(topstds)==0:
-        return None
+    topstds = stdf[stdf['frac_obs'] > 0.2].sort_values('airmass').reset_index(drop=True)
+    logging.info(topstds.head(3))
+    if len(topstds) == 0:
+        return False, None
     else:
-        return topstds.iloc[0]
+        topstds.loc[0,'request_id'] = 'cal'+str(randint(100,999))
+        return True, topstds.iloc[0]
 
-def is_standard_done(queuepath,which='morning'):
-    if glob.glob(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
-        return False
+def is_standard_done(requests_filepath, which='morning'):
+    """
+    Check if standard star observation was finished
+    :param requests_filepath:
+    :param which: type of standard - morning,evening,filler
+    :return: bool output
+    """
+    logdf = pd.read_csv(requests_filepath)
+    req_row = list(logdf[logdf['object_type'] == f'{which}_standard']['status'])
+    # return False
+    if len(req_row) == 0 or req_row[-1] == 'Failed':
+       return False
     else:
-        logdf = pd.read_csv(f'{queuepath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
-        if f'{which}_standard' in np.array(logdf['object_type']):
-            return True
+       return True
+
+def query_schedule(session):
+    method = 'GET'
+    # Time range for fritz scheduler query
+    start_date = Time.now()
+    end_date = Time.now() + TimeDelta(12 * u.hour)
+
+    # Find instrument id for SEDMv2 (hard coding to speed up things)
+    instrument_id = 1078
+    # endpoint = 'instrument'
+    # url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    # response = session.request(method, url, headers=headers)
+    # for instrument in response.json()["data"]:
+    #     if instrument["name"] == "SEDMv2":
+    #         instrument_id = instrument["id"]
+    #         break
+    # logging.info(f'get_obs: Found instrument id {instrument_id}')
+
+    # Query schedule
+    endpoint = f'followup_request/schedule/{instrument_id}'
+    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+    params = {'observationStartDate': str(start_date),
+              'observationEndDate': str(end_date),
+              'status': 'submitted',
+              'output_format': 'csv'}
+    target_returned = False
+    logging.info('get_obs: Making request now')
+    response = session.request(method, url, params=params, headers=headers)
+    output_string = response.content.decode('utf-8')
+    output = StringIO(output_string)
+    logging.info(output_string)
+    if 'error' in output_string:
+        if 'Need at least one observation to schedule' in output_string:
+            logging.error('get_obs: No observations to schedule')
         else:
-            return False
-            
+            logging.error('get_obs: Could not access queue')
+    df = pd.read_csv(output)
+    if len(df) == 0:
+        logging.error('get_obs: No observations scheduled, length of table: 0')
+    else:
+        logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
+        target_returned = True
+    return target_returned, df
+
 opts = parse_commandline()
 
-logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
+logging.basicConfig(filename=f'{opts.queuePath}/logs/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8',
+                    level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-# Parse command line
+
+requests_filepath = f'{opts.queuePath}/requests/requests_{Time.now().strftime("%Y%m%d")}.csv'
 outfile = f'{opts.queuePath}/{opts.outfile}'
 
+# Create requests file, create if not present
+if glob.glob(requests_filepath) == []:
+    logdf = pd.DataFrame(
+        columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type', 'status'],
+        data=[])
+    logdf.to_csv(requests_filepath, index=False)
+
+# Load token for fritz
+global headers
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
-elif len(glob.glob(f'{opts.queuePath}/token.txt'))!=0:
+elif len(glob.glob(f'{opts.queuePath}/token.txt')) != 0:
     token = open(f'{opts.queuePath}/token.txt', 'r').read().strip()
     headers = {'Authorization': f'token {token}'}
 else:
@@ -82,91 +151,90 @@ else:
     logging.error('get_obs: Token not found, cannot access queue')
     sys.exit(1)
 
-method = 'GET'
-start_date = Time.now()
-end_date = Time.now() + TimeDelta(12 * u.hour)
-
 session = requests.Session()
 
-endpoint = 'instrument'
-url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-response = session.request(method, url, headers=headers)
-
-for instrument in response.json()["data"]:
-    if instrument["name"] == "SEDMv2":
-        instrument_id = instrument["id"]
-        break
-logging.info(f'get_obs: Found instrument id {instrument_id}')
-
-endpoint = f'followup_request/schedule/{instrument_id}'
-url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-params = {'observationStartDate': str(start_date),
-          'observationEndDate': str(end_date),
-          'status': 'submitted',
-          'output_format': 'csv'}
-
-target_returned = False
-logging.info('get_obs: Making request now')
-response = session.request(method, url, params=params, headers=headers)
-
-output_string = response.content.decode('utf-8')
-output = StringIO(output_string)
-logging.info(output_string)
-if 'error' in output_string:
-    if 'Need at least one observation to schedule' in output_string:
-        logging.error('get_obs: No observations scheduled... sorry.')
-        # sys.exit(2)
-    else:
-        logging.error('get_obs: Could not access queue')
-        # sys.exit(1)
-
-df = pd.read_csv(output)
-
-if len(df) == 0:
-    logging.error('get_obs: No observations scheduled... sorry.')
-    # sys.exit(2)
-else:
-    target_returned = True
-
+# Choose between science and standard observation
 loc = Observer.at_site('Kitt Peak')
 eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
 morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
+morn_naut_twil = loc.twilight_morning_nautical(Time.now(), which='nearest')
 
-if (Time.now() < eve_twil + TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath, which='evening')):
-    row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "evening_standard"
-elif (Time.now() > morn_twil - TimeDelta(2*u.hour)) and (not is_standard_done(opts.queuePath, which='morning')):
-    row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "morning_standard"
-elif target_returned:
-    row = df.iloc[0]
-    doing_standard = False
-    objtype = "science"
-elif not target_returned:
-    row = get_standard_star(opts.queuePath)
-    doing_standard = True
-    objtype = "filler_standard"
-else:
-    logging.error('get_obs: No observations scheduled... sorry.')
-    sys.exit(2)
+doing_standard, row, objtype = False, None, None
+if (Time.now() < eve_twil + TimeDelta(2 * u.hour)) and (not is_standard_done(requests_filepath, which='evening')):
+    standard_returned, row = get_standard_star(opts.queuePath)
+    if standard_returned:
+        doing_standard = True
+        objtype = "evening_standard"
+        logging.info(f'get_obs: Doing {objtype}')
+elif (Time.now() > morn_twil) and (Time.now() < morn_naut_twil) and (not is_standard_done(requests_filepath, which='morning')):
+    standard_returned, row = get_standard_star(opts.queuePath)
+    if standard_returned:
+        doing_standard = True
+        objtype = "morning_standard"
+        logging.info(f'get_obs: Doing {objtype}')
+
+doing_filler = False
+if not doing_standard:
+    target_returned, df = query_schedule(session)
+    if target_returned:
+        for i in range(len(df)):
+            if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]+300), format='sec') < morn_naut_twil:
+                doing_standard = False
+                objtype = "science"
+                row = df.iloc[i]
+                logging.info(f'get_obs: Doing {objtype}')
+                break
+            else:
+                logging.error('get_obs: Observation will exceed astronomical twilight end, checking next')
+                continue
+        if row is None:
+            doing_filler = True
+    else:
+        doing_filler = True
+
+if doing_filler:
+    logging.info('get_obs: Filler flag true, getting a standard')
+    standard_returned, row = get_standard_star(opts.queuePath)
+    if standard_returned:
+        doing_standard = True
+        objtype = "filler_standard"
+        logging.info(f'get_obs: Doing {objtype}')
+    else:
+        logging.error('get_obs: No standard returned')
+        sys.exit(2)
+
 if row is None:
     logging.error('get_obs: No observations scheduled... sorry.')
     sys.exit(2)
 
-required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time", "filter"]
+# Save output file for ROS
+required_columns = ["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch", "exposure_time"]
 for col in required_columns:
-    if col not in df.columns:
+    if col not in row.index:
         logging.error(f'get_obs: {col} not present in queue request')
         sys.exit(5)
-filternames = {'u':'FILTER_SLOAN_U', 'g':'FILTER_SLOAN_G', 'r':'FILTER_SLOAN_R', 'i':'FILTER_SLOAN_I', 'z':'FILTER_SLOAN_Z',
-              'IFU':'FILTER_IFU'}
-filt = filternames[row["filter"]]
+filternames = {'u': 'FILTER_SLOAN_U', 'g': 'FILTER_SLOAN_G', 'r': 'FILTER_SLOAN_R', 'i': 'FILTER_SLOAN_I',
+               'z': 'FILTER_SLOAN_Z', 'IFU': 'FILTER_IFU'}
+emccd_modes = {'1':1, '2':2, '3':3, '5':4, '10':5,}# '15':6, '20':7, '25':8, '30':9}
+filt = filternames[row["observation_choice"]]
 if filt == 'FILTER_IFU':
     mode = 0
+    # logging.error(f'get_obs: Cannot handle IFU requests for now, exiting')
+    # sys.exit(1)
 else:
-    mode = 5
+    if "frame_exposure_time" in row.index:
+        if not pd.isna(row["frame_exposure_time"]):
+            fet = str(int(row["frame_exposure_time"]))
+            if fet in emccd_modes.keys():
+                mode = emccd_modes[fet]
+            else:
+                logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
+                mode = 5
+        else:
+            mode = 5
+    else:
+        mode = 5
+
 fid = open(outfile, 'w')
 now = Time.now()
 gps = now.gps
@@ -189,69 +257,29 @@ print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
 print('FILTER=%s' % filt, file=fid, flush=True)
 print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
 fid.close()
-
 # Checking if the saved queue_target.dat has the correct request_id
 if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_id"]):
     logging.error('get_obs: Error in saving queue_target.dat')
     sys.exit(6)
 
-# Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
+#Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
 if not doing_standard:
     endpoint = f'followup_request/{row["request_id"]}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    response = session.request('GET', url, params=None, headers=headers).json()
-    if 'error' in response['status'] or response['data']=={}:
-        logging.error('get_obs: Could not query the request, check request_id')
-    #     sys.exit(1)
-    params = {'allocation_id': response['data']['allocation_id'],
-              'obj_id': response['data']['obj_id'],
-              'status': "ongoing"}
+    params = {'status': "ongoing"}
     response = session.request('PUT', url, json=params, headers=headers).json()
-    if response['status']=="success":
+    if response['status'] == "success":
         logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
-    #     exit(0)
     else:
         logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
         logging.info(response['message'])
-    #     exit(1)
 
 ## Add object in daily requests log
-if glob.glob(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv') == []:
-    logdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
-                         data=[])
-    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
-else:
-    logdf = pd.read_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv')
-    tempdf = pd.DataFrame(columns=['object_id','request_id','ra','dec','exposure_time','filter','mode','object_type'],
-                          data=[row["object_id"],row["request_id"],row["ra"],row["dec"],row["exposure_time"],filt,mode,
-                                objtype])
-    logdf = logdf.append(tempdf).reset_index(drop=True)
-    logdf.to_csv(f'{opts.queuePath}/requests_{Time.now().strftime("%Y%m%d")}.csv',index=False)
+logdf = pd.read_csv(requests_filepath)
+tempdf = pd.DataFrame(
+    columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type','status'],
+    data=[[row["object_id"], row["request_id"], row["ra"], row["dec"], row["exposure_time"], filt, mode, objtype, 'ongoing']])
+logdf = pd.concat([logdf, tempdf], ignore_index=True)
+logdf.to_csv(requests_filepath, index=False)
 
-# else:
-#     fid = open(outfile, 'w')
-#     now = Time.now()
-#     gps = now.gps
-#     requestID = "%s_%d" % ("HD1239", gps)
-#     mag = 99
-#     ra_rate = 0
-#     dec_rate = 0
-#     print('PROGRAM_PI=%s' % "cal", file=fid, flush=True)
-#     print('PROGRAM_ID=%s' % "None", file=fid, flush=True)
-#     print('OBJECT_ID=%s' % "HD1239", file=fid, flush=True)
-#     print('REQUEST_ID=%s' % "None", file=fid, flush=True)
-#     print('COMMENT=%s' % requestID, file=fid, flush=True)
-#     print('OBJ_RA=%s' % "00:16:57.0431385504", file=fid, flush=True)
-#     print('OBJ_DEC=%s' % "+61:31:59.468659896", file=fid, flush=True)
-#     print('EQUINOX=%.2f' % 2000, file=fid, flush=True)
-#     print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
-#     print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
-#     print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-#     print('EXPTIME=%d' % 20, file=fid, flush=True)
-#     print('FILTER=%s' % "FILTER_IFU", file=fid, flush=True)
-#     print('CAMERA_MODE=%d' % 0, file=fid, flush=True)
-#     fid.close()
-
-#cp_command = "cp %s %s/%s.dat" % (outfile, opts.requests, requestID)
-#os.system(cp_command)
 sys.exit(0)
