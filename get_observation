@@ -178,7 +178,7 @@ if not doing_standard:
     target_returned, df = query_schedule(session)
     if target_returned:
         for i in range(len(df)):
-            if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]+300), format='sec') < morn_naut_twil:
+            if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]), format='sec') < morn_naut_twil + TimeDelta(900, format='sec'):
                 doing_standard = False
                 objtype = "science"
                 row = df.iloc[i]
