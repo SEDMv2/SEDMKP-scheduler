@@ -72,13 +72,13 @@ logdf.to_csv(requests_filepath, index=False)
 if 'cal' in opts.request_id:
     exit(0)
 # Query fritz using request_id arg to get rest of the request params
-updated = True
+updated = False
 count = 0
 while (not updated) and count < 3:
     endpoint = f'followup_request/{opts.request_id}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     # Use the obtained request params to edit the request
-    params = {'status': status[opts.status]}
+    params = {'status': f'{status[opts.status]} {Time.now().isot}'}
     response = session.request('PUT', url, json=params, headers=headers).json()
     if response['status']=="success":
         logging.info(f'obs_stat: Successfully updated request {opts.request_id}')
