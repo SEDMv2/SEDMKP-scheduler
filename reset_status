@@ -4,11 +4,9 @@ import numpy as np
 import optparse
 import urllib
 import requests
-import sys
 import glob
 import pandas as pd
-import logging
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
 from io import StringIO
 
@@ -52,14 +50,14 @@ def query_requests(session, action):
         print(df)
         print('------------------------------------------------------')
     elif action == "expire":
-        params = {'status': 'submitted', 'output_format': 'csv', 'endDate':Time.now().isot}
+        params = {'status': 'submitted', 'output_format': 'csv', 'endDate':(Time.now()-TimeDelta(1,format='day')).isot}
         response = session.request(method, url, params=params, headers=headers)
         output = StringIO(response.content.decode('utf-8'))
         if 'error' in response.content.decode('utf-8'):
             print('reset_status: action=expire, could not access queue with status submitted')
         df1 = pd.read_csv(output)
 
-        params = {'status': 'ongoing', 'output_format': 'csv', 'endDate':Time.now().isot}
+        params = {'status': 'ongoing', 'output_format': 'csv', 'endDate':(Time.now()-TimeDelta(1,format='day')).isot}
         response = session.request(method, url, params=params, headers=headers)
         output = StringIO(response.content.decode('utf-8'))
         if 'error' in response.content.decode('utf-8'):
@@ -76,9 +74,6 @@ def query_requests(session, action):
 
 # Parse command line
 opts, args = parse_commandline()
-# logging.basicConfig(filename=f'{opts.queuePath}/logs/reset_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
-#                     format='%(asctime)s %(message)s')
-# logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
