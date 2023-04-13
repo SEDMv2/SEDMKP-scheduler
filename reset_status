@@ -94,25 +94,24 @@ session = requests.Session()
 
 df = query_requests(session, opts.action)
 if df is None:
+    print('Empty dataframe')
     exit(1)
 
-for i in range(len(df)):
-    row = df.iloc[i]
-    request_id = row['request_id']
-    endpoint = f'followup_request/{request_id}'
-    url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    if opts.action == 'reset':
-        params = {'status':'submitted'}
-    elif opts.action == 'expire':
-        params = {'status':f'Expired {Time.now().isot}'}
-    else:
-        exit(1)
-
-    response = session.request('PUT', url, json=params, headers=headers).json()
-    if response['status']=="success":
-        print(f'reset_status: Successfully updated request {request_id}')
-        exit(0)
-    else:
-        print(f'reset_status: Error in updating request {request_id}')
-        print(response['message'])
-        exit(1)
+# for i in range(len(df)):
+#     row = df.iloc[i]
+#     request_id = row['request_id']
+#     endpoint = f'followup_request/{request_id}'
+#     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
+#     if opts.action == 'reset':
+#         params = {'status':'submitted'}
+#     elif opts.action == 'expire':
+#         params = {'status':f'Expired {Time.now().isot}'}
+#     else:
+#         exit(1)
+#
+#     response = session.request('PUT', url, json=params, headers=headers).json()
+#     if response['status']=="success":
+#         print(f'reset_status: Successfully updated request {request_id}')
+#     else:
+#         print(f'reset_status: Error in updating request {request_id}')
+#         print(response['message'])
