@@ -46,33 +46,33 @@ def query_requests(session, action):
 
         output = StringIO(response.content.decode('utf-8'))
         if 'error' in response.content.decode('utf-8'):
-            logging.error('reset_status: action=reset, could not access queue with status ongoing')
+            print('reset_status: action=reset, could not access queue with status ongoing')
         df = pd.read_csv(output)
     elif action == "expire":
         params = {'status': 'submitted', 'output_format': 'csv', 'endDate':Time.now().isot}
         response = session.request(method, url, params=params, headers=headers)
         output = StringIO(response.content.decode('utf-8'))
         if 'error' in response.content.decode('utf-8'):
-            logging.error('reset_status: action=expire, could not access queue with status submitted')
+            print('reset_status: action=expire, could not access queue with status submitted')
         df1 = pd.read_csv(output)
 
         params = {'status': 'ongoing', 'output_format': 'csv', 'endDate':Time.now().isot}
         response = session.request(method, url, params=params, headers=headers)
         output = StringIO(response.content.decode('utf-8'))
         if 'error' in response.content.decode('utf-8'):
-            logging.error('reset_status: action=expire, could not access queue with status ongoing')
+            print('reset_status: action=expire, could not access queue with status ongoing')
         df2 = pd.read_csv(output)
         df = pd.concat([df1, df2])
     else:
-        logging.error('reset_status: action=invalid value')
+        print('reset_status: action=invalid value')
         df = None
     return df
 
 # Parse command line
 opts, args = parse_commandline()
-logging.basicConfig(filename=f'{opts.queuePath}/scheduler_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
-                    format='%(asctime)s %(message)s')
-logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+# logging.basicConfig(filename=f'{opts.queuePath}/logs/reset_{Time.now().strftime("%Y%m%d")}.log', encoding='utf-8', level=logging.DEBUG,
+#                     format='%(asctime)s %(message)s')
+# logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 if opts.token:
     headers = {'Authorization': f'token {opts.token}'}
@@ -81,7 +81,7 @@ elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
     headers = {'Authorization': f'token {token}'}
 else:
     headers = None
-    logging.error('reset_status: Token not provided,exiting')
+    print('reset_status: Token not provided,exiting')
     exit(1)
     
 session = requests.Session()
@@ -104,9 +104,9 @@ for i in range(len(df)):
 
     response = session.request('PUT', url, json=params, headers=headers).json()
     if response['status']=="success":
-        logging.info(f'reset_status: Successfully updated request {request_id}')
+        print(f'reset_status: Successfully updated request {request_id}')
         exit(0)
     else:
-        logging.error(f'reset_status: Error in updating request {request_id}')
-        logging.info(response['message'])
+        print(f'reset_status: Error in updating request {request_id}')
+        print(response['message'])
         exit(1)
