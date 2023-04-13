@@ -48,6 +48,9 @@ def query_requests(session, action):
         if 'error' in response.content.decode('utf-8'):
             print('reset_status: action=reset, could not access queue with status ongoing')
         df = pd.read_csv(output)
+        print('------------------------------------------------------')
+        print(df)
+        print('------------------------------------------------------')
     elif action == "expire":
         params = {'status': 'submitted', 'output_format': 'csv', 'endDate':Time.now().isot}
         response = session.request(method, url, params=params, headers=headers)
@@ -63,6 +66,9 @@ def query_requests(session, action):
             print('reset_status: action=expire, could not access queue with status ongoing')
         df2 = pd.read_csv(output)
         df = pd.concat([df1, df2])
+        print('------------------------------------------------------')
+        print(df)
+        print('------------------------------------------------------')
     else:
         print('reset_status: action=invalid value')
         df = None
