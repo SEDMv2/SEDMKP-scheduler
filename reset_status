@@ -38,38 +38,41 @@ def query_requests(session, action):
     endpoint = f'followup_request/schedule/{instrument_id}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
 
+    requestlist = []
     if action == "reset":
-        params = {'status': 'ongoing', 'output_format': 'csv'}
-        response = session.request(method, url, params=params, headers=headers)
-
-        output = StringIO(response.content.decode('utf-8'))
-        if 'error' in response.content.decode('utf-8'):
+        params = {'status': 'ongoing'}
+        response = session.request(method, url, params=params, headers=headers).json()
+        if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status ongoing')
-        df = pd.read_csv(output)
-        print('------------------------------------------------------')
-        print(df)
-        print('------------------------------------------------------')
-    elif action == "expire":
-        params = {'status': 'submitted', 'output_format': 'csv', 'endDate':(Time.now()-TimeDelta(1,format='jd')).isot}
-        response = session.request(method, url, params=params, headers=headers)
-        output = StringIO(response.content.decode('utf-8'))
-        if 'error' in response.content.decode('utf-8'):
-            print('reset_status: action=expire, could not access queue with status submitted')
-        df1 = pd.read_csv(output)
+        else:
+            requestlist = requestlist + response['data']['followup_requests']
 
-        params = {'status': 'ongoing', 'output_format': 'csv', 'endDate':(Time.now()-TimeDelta(1,format='jd')).isot}
-        response = session.request(method, url, params=params, headers=headers)
-        output = StringIO(response.content.decode('utf-8'))
-        if 'error' in response.content.decode('utf-8'):
+    elif action == "expire":
+        params = {'status': 'submitted', 'endDate':(Time.now()-TimeDelta(1,format='jd')).isot}
+        response = session.request(method, url, params=params, headers=headers).json()
+        if response['status']!='success':
+            print('reset_status: action=expire, could not access queue with status submitted')
+        else:
+            requestlist = requestlist + response['data']['followup_requests']
+
+        params = {'status': 'ongoing', 'endDate':(Time.now()-TimeDelta(1,format='jd')).isot}
+        response = session.request(method, url, params=params, headers=headers).json()
+        if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status ongoing')
-        df2 = pd.read_csv(output)
-        df = pd.concat([df1, df2])
-        print('------------------------------------------------------')
-        print(df)
-        print('------------------------------------------------------')
+        else:
+            requestlist = requestlist + response['data']['followup_requests']
+
     else:
         print('reset_status: action=invalid value')
-        df = None
+
+    data = []
+    for rq in requestlist:
+        data.append([rq['id'], rq['obj_id'], rq['status'], Time(rq['payload']['end_date'],format='isot')])
+    df = pd.DataFrame(columns=['request_id','object_id','status','endDate'],data=data)
+    df = df[df['endDate']<(Time.now()-TimeDelta(1,format='jd'))].reset_index(drop=True)
+    print('------------------------------------------------------')
+    print(df)
+    print('------------------------------------------------------')
     return df
 
 # Parse command line
