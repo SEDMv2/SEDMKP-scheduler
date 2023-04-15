@@ -131,9 +131,14 @@ for i in range(len(df)):
     else:
         exit(1)
 
-    response = session.request('PUT', url, json=params, headers=headers).json()
-    if response['status']=="success":
-        print(f'reset_status: Successfully updated request {request_id}')
-    else:
-        print(f'reset_status: Error in updating request {request_id}')
-        print(response['message'])
+    count = 0
+    updated = False
+    while (not updated) and count < 3:
+        response = session.request('PUT', url, json=params, headers=headers).json()
+        if response['status']=="success":
+            print(f'reset_status: Successfully updated request {request_id}')
+            updated = True
+        else:
+            print(f'reset_status: Error in updating request {request_id}')
+            print(response['message'])
+        count = count + 1
