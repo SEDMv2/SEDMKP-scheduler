@@ -89,7 +89,7 @@ def get_filler_object(queuepath):
     else:
         topstds.loc[0,'request_id'] = topstds.loc[0,'requester']+str(randint(100,999))
         if topstds.loc[0,'requester'] == 'fil':
-            topstds.loc[0,'filter'] = np.random.choice(['g','r','i'],1)[0]
+            topstds.loc[0,'observation_choice'] = np.random.choice(['g','r','i'],1)[0]
         return True, topstds.iloc[0]
 
 def is_standard_done(requests_filepath, which='morning'):
