@@ -47,7 +47,7 @@ def get_standard_star(queuepath):
     #print(stdf)
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
-    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.5),
+    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
                    MoonSeparationConstraint(min=30*u.deg),
                    AtNightConstraint.twilight_nautical()]
     loc = Observer.at_site('Kitt Peak')
@@ -73,7 +73,7 @@ def get_filler_object(queuepath):
     stdf = pd.read_csv(f'{queuepath}/list_of_fillers.txt')
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.deg, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
-    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.5),
+    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
                    MoonSeparationConstraint(min=20*u.deg),
                    AtNightConstraint.twilight_nautical()]
     loc = Observer.at_site('Kitt Peak')
