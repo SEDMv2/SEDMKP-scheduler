@@ -290,7 +290,7 @@ if open(outfile, 'r').readlines()[3].split('=')[-1].strip() != str(row["request_
     sys.exit(6)
 
 #Now marking the request that was sent as 'ongoing' so that the next query doesn't return the same thing
-if not doing_standard:
+if not doing_standard and not doing_filler:
     endpoint = f'followup_request/{row["request_id"]}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     params = {'status': "ongoing"}
