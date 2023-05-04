@@ -357,7 +357,7 @@ elif opts.input == "file":
         alt = Angle(row['alt'],unit=u.deg)
         az = Angle(row['az'],unit=u.deg)
         loc = Observer.at_site('Kitt Peak')
-        aacoord = SkyCoord(az=az, alt=alt, location=EarthLocation.of_site('Kitt Peak'), obstime=Time.now(),
+        aa = SkyCoord(az=az, alt=alt, location=EarthLocation.of_site('Kitt Peak'), obstime=Time.now(),
                            frame='altaz')
         row["ra"] = aa.icrs.ra.to_string(unit='hourangle',sep=':',pad=True)
         row["dec"] = aa.icrs.dec.to_string(unit='deg',sep=':',pad=True)
