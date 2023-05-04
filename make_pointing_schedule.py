@@ -9,6 +9,6 @@ for az in azimuths:
         ordered_altaz.append(['point','-99',f'point_{count}','-99',az,alt,'2000',120.0,'cl'])
         count = count+1
 
-df = pd.DataFrame(columns=["requester", "group_id", "object_id", "request_id", "ra", "dec", "epoch",
+df = pd.DataFrame(columns=["requester", "group_id", "object_id", "request_id", "az", "alt", "epoch",
                     "exposure_time","observation_choice"], data=ordered_altaz)
 df.to_csv('fixed_schedule.csv',index=False)
