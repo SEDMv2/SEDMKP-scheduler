@@ -331,6 +331,7 @@ if opts.input == "fritz":
 elif opts.input == "file":
     # Look for a file called fixed_schedule.csv
     fdf = pd.read_csv(f'{opts.queuePath}/fixed_schedule.csv')
+    # print(fdf.head(2))
     if 'status' not in fdf.columns:
         fdf['status'] = np.repeat('submitted',len(fdf))
 
@@ -347,18 +348,21 @@ elif opts.input == "file":
             sys.exit(5)
 
     fdf_notdone = fdf[fdf['status']=='submitted']
+    # print(fdf_notdone.head(2))
     toprow_ind = fdf_notdone.index[0]
+    # print(toprow_ind)
     if len(fdf_notdone)==0:
         logging.error(f'get_obs: Done with all file observations, no more targets left')
         sys.exit(1)
 
-    row = fdf_notdone.iloc[toprow_ind]
+    row = fdf_notdone.loc[toprow_ind]
     if doing_pointing:
         alt = Angle(row['alt'],unit=u.deg)
         az = Angle(row['az'],unit=u.deg)
         loc = Observer.at_site('Kitt Peak')
         aa = SkyCoord(az=az, alt=alt, location=EarthLocation.of_site('Kitt Peak'), obstime=Time.now(),
                            frame='altaz')
+        print(aa.icrs.ra.value, aa.icrs.dec.value)
         row["ra"] = aa.icrs.ra.to_string(unit='hourangle',sep=':',pad=True)
         row["dec"] = aa.icrs.dec.to_string(unit='deg',sep=':',pad=True)
 
