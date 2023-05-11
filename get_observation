@@ -369,19 +369,20 @@ elif opts.input == "file":
     filt = filternames[row["observation_choice"]]
     if filt == 'FILTER_IFU':
         mode = 0
-    else:
-        if "frame_exposure_time" in row.index:
-            if not pd.isna(row["frame_exposure_time"]):
-                fet = str(int(row["frame_exposure_time"]))
-                if fet in emccd_modes.keys():
-                    mode = emccd_modes[fet]
-                else:
-                    logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
-                    mode = 5
+    elif "frame_exposure_time" in row.index:
+        if not pd.isna(row["frame_exposure_time"]):
+            fet = str(int(row["frame_exposure_time"]))
+            if fet in emccd_modes.keys():
+                mode = emccd_modes[fet]
             else:
+                logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
                 mode = 5
         else:
             mode = 5
+    elif doing_pointing:
+        mode = 0
+    else:
+        mode = 5
 
     fid = open(outfile, 'w')
     now = Time.now()
