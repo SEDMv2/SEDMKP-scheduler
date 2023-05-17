@@ -265,18 +265,21 @@ if opts.input == "fritz":
         # logging.error(f'get_obs: Cannot handle IFU requests for now, exiting')
         # sys.exit(1)
     else:
-        if "frame_exposure_time" in row.index:
-            if not pd.isna(row["frame_exposure_time"]):
-                fet = str(int(row["frame_exposure_time"]))
-                if fet in emccd_modes.keys():
-                    mode = emccd_modes[fet]
+        if row["observation_type"] == 'transient':
+            mode = 0
+        else:
+            if "frame_exposure_time" in row.index:
+                if not pd.isna(row["frame_exposure_time"]):
+                    fet = str(int(row["frame_exposure_time"]))
+                    if fet in emccd_modes.keys():
+                        mode = emccd_modes[fet]
+                    else:
+                        logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
+                        mode = 5
                 else:
-                    logging.error(f'get_obs: Invalid frame exposure time for emccd, setting to 10.0')
                     mode = 5
             else:
                 mode = 5
-        else:
-            mode = 5
 
     fid = open(outfile, 'w')
     now = Time.now()
@@ -382,7 +385,7 @@ elif opts.input == "file":
     elif doing_pointing:
         mode = 0
     else:
-        mode = 5
+        mode = 0
 
     fid = open(outfile, 'w')
     now = Time.now()
