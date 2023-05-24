@@ -50,16 +50,16 @@ def get_standard_star(queuepath):
     # print(stdf)
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.hourangle, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
-    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
+    constraints = [AltitudeConstraint(25 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
                    MoonSeparationConstraint(min=30 * u.deg),
                    AtNightConstraint.twilight_nautical()]
     loc = Observer.at_site('Kitt Peak')
-    time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
+    time_range = [Time.now(), Time.now() + TimeDelta(1 * u.hour)]
     airmass = loc.altaz(time=Time.now(), target=targets).secz
     table = observability_table(constraints, loc, targets, time_range=time_range)
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
-    topstds = stdf[stdf['frac_obs'] > 0].sort_values('airmass').reset_index(drop=True)
+    topstds = stdf[stdf['frac_obs'] > 0.25].sort_values('airmass').reset_index(drop=True)
     logging.info(topstds.head(3))
     if len(topstds) == 0:
         return False, None
@@ -77,16 +77,16 @@ def get_filler_object(queuepath):
     stdf = pd.read_csv(f'{queuepath}/list_of_fillers.txt')
     targets = [FixedTarget(coord=SkyCoord(ra=stdf.loc[i]['ra'], dec=stdf.loc[i]['dec'], unit=(u.deg, u.deg)),
                            name=stdf.loc[i]['object_id'].strip()) for i in range(len(stdf))]
-    constraints = [AltitudeConstraint(20 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
-                   MoonSeparationConstraint(min=20 * u.deg),
+    constraints = [AltitudeConstraint(25 * u.deg, 90 * u.deg), AirmassConstraint(2.0),
+                   MoonSeparationConstraint(min=30 * u.deg),
                    AtNightConstraint.twilight_nautical()]
     loc = Observer.at_site('Kitt Peak')
-    time_range = [Time.now(), Time.now() + TimeDelta(2 * u.hour)]
+    time_range = [Time.now(), Time.now() + TimeDelta(1 * u.hour)]
     airmass = loc.altaz(time=Time.now(), target=targets).secz
     table = observability_table(constraints, loc, targets, time_range=time_range)
     stdf['airmass'] = airmass
     stdf['frac_obs'] = table['fraction of time observable']
-    topstds = stdf[stdf['frac_obs'] > 0.1].sort_values('airmass').reset_index(drop=True)
+    topstds = stdf[stdf['frac_obs'] > 0.25].sort_values('airmass').reset_index(drop=True)
     logging.info(topstds.head(3))
     if len(topstds) == 0:
         return False, None
@@ -200,6 +200,7 @@ if opts.input == "fritz":
     eve_twil = loc.twilight_evening_astronomical(Time.now(), which='nearest')
     morn_twil = loc.twilight_morning_astronomical(Time.now(), which='nearest')
     morn_naut_twil = loc.twilight_morning_nautical(Time.now(), which='nearest')
+    morn_civil_twil = loc.twilight_morning_civil(Time.now(), which='nearest')
 
     # Check if we need to do standard star observation
     doing_standard, row, objtype = False, None, None
@@ -223,7 +224,7 @@ if opts.input == "fritz":
         target_returned, df = query_schedule(session)
         if target_returned:
             for i in range(len(df)):
-                if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]), format='sec') < morn_naut_twil:
+                if Time.now() + TimeDelta((df.iloc[i]["exposure_time"]), format='sec') < morn_civil_twil:
                     doing_standard = False
                     objtype = "science"
                     row = df.iloc[i]
