@@ -269,7 +269,7 @@ if opts.input == "fritz":
     doing_filler = False
     if not doing_standard:
         try:
-            target_returned, df = func_timeout(30,query_schedule,args=session)
+            target_returned, df = func_timeout(30,query_schedule,args=(session))
         except FunctionTimedOut:
             logging.error('api call timed out, call Michael!')
             target_returned = False
