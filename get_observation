@@ -192,8 +192,10 @@ def query_schedule(session):
             logging.error('get_obs: No observations to schedule')
         else:
             logging.error('get_obs: Could not access queue')
+    if '504 Gateway Time-out' in output_string:
+        logging.error('api call timed out, contact Michael!')
     df = pd.read_csv(output)
-    if len(df) == 0:
+    if (len(df) == 0) or ('504 Gateway Time-out' in output_string):
         logging.error('get_obs: No observations scheduled, length of table: 0')
     else:
         logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
