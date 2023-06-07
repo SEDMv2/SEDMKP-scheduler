@@ -9,6 +9,7 @@ import numpy as np
 from random import randint
 import logging
 from io import StringIO
+from func_timeout import func_timeout, FunctionTimedOut
 
 from astropy.time import Time, TimeDelta
 import astropy.units as u
@@ -267,7 +268,12 @@ if opts.input == "fritz":
     # If not doing standard, try to get target from fritz, if nothing returned, set filler as true
     doing_filler = False
     if not doing_standard:
-        target_returned, df = query_schedule(session)
+        try:
+            target_returned, df = func_timeout(30,query_schedule,args=session)
+        except FunctionTimedOut:
+            logging.error('api call timed out, call Michael!')
+            target_returned = False
+            df = None
         print(target_returned, df)
         if target_returned:
             for i in range(len(df)):
