@@ -452,14 +452,14 @@ elif opts.input == "file":
     fid = open(outfile, 'w')
     now = Time.now()
     gps = now.gps
-    requestID = "%s_%d" % (row["object_id"], gps)
+    requestID = "%s_%d" % (row["object_id"].strip(), gps)
     mag = 99
     ra_rate = 0
     dec_rate = 0
     print('PROGRAM_PI=%s' % row["requester"], file=fid, flush=True)
     print('PROGRAM_ID=%s' % row["group_id"], file=fid, flush=True)
-    print('OBJECT_ID=%s' % row["object_id"], file=fid, flush=True)
-    print('REQUEST_ID=%s' % row["request_id"], file=fid, flush=True)
+    print('OBJECT_ID=%s' % str(row["object_id"]).strip(), file=fid, flush=True)
+    print('REQUEST_ID=%s' % str(row["request_id"]).strip(), file=fid, flush=True)
     print('COMMENT=%s' % requestID, file=fid, flush=True)
     print('OBJ_RA=%s' % row["ra"], file=fid, flush=True)
     print('OBJ_DEC=%s' % row["dec"], file=fid, flush=True)
@@ -472,7 +472,7 @@ elif opts.input == "file":
     print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
     fid.close()
     # Checking if the saved queue_target.dat has the correct request_id
-    if open(outfile, 'r').readlines()[3].split('=')[-1] != str(row["request_id"]):
+    if open(outfile, 'r').readlines()[3].split('=')[-1] != str(row["request_id"]).strip():
         logging.error('get_obs: Error in saving queue_target.dat')
         sys.exit(6)
     fdf.loc[toprow_ind,'status'] = 'selected'
