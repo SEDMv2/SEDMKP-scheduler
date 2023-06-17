@@ -31,8 +31,9 @@ def parse_commandline():
                       help="Default path where queue scripts are")
     parser.add_option("-f", "--outfile", default="queue_target.dat", help="Output file name")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
-    parser.add_option("-i", "--input", choices=["fritz", "file"], default="fritz",
+    parser.add_option("-i", "--input", choices=["fritz", "file"], default="file",
             help="Choose the input scheduler (fritz or a custom file). Custom file should be named fixed_schedule.csv")
+    parser.add_option("--inputFile", default="photo_cal_observing_plan_final.txt", help="Input file name for custom file scheduler")
     #     parser.add_option("-r", "--requests", default="/home/sedm/Queue/sedmv2/requests/",
     #                       help="Requests folder path where top request from scheduler is sent")
 
@@ -388,7 +389,7 @@ if opts.input == "fritz":
 
 elif opts.input == "file":
     # Look for a file called fixed_schedule.csv
-    fdf = pd.read_csv(f'{opts.queuePath}/fixed_schedule.csv')
+    fdf = pd.read_csv(f'{opts.queuePath}/{opts.inputFile}')
     # print(fdf.head(2))
     if 'status' not in fdf.columns:
         fdf['status'] = np.repeat('submitted',len(fdf))
@@ -439,6 +440,8 @@ elif opts.input == "file":
             mode = 5
     elif doing_pointing:
         mode = 0
+    elif "observation_mode" in row.index:
+        mode = int(row["observation_mode"])
     else:
         mode = 0
 
@@ -460,7 +463,7 @@ elif opts.input == "file":
     print('RA_RATE=%.2f' % ra_rate, file=fid, flush=True)
     print('DEC_RATE=%.2f' % dec_rate, file=fid, flush=True)
     print('MAGNITUDE=%.2f' % mag, file=fid, flush=True)
-    print('EXPTIME=%d' % row["exposure_time"], file=fid, flush=True)
+    print('EXPTIME=%d' % float(row["exposure_time"]), file=fid, flush=True)
     print('FILTER=%s' % filt, file=fid, flush=True)
     print('CAMERA_MODE=%d' % mode, file=fid, flush=True)
     fid.close()
@@ -469,7 +472,17 @@ elif opts.input == "file":
         logging.error('get_obs: Error in saving queue_target.dat')
         sys.exit(6)
     fdf.loc[toprow_ind,'status'] = 'selected'
-    fdf.to_csv(f'{opts.queuePath}/fixed_schedule.csv',index=False)
+    fdf.to_csv(f'{opts.queuePath}/{opts.inputFile}',index=False)
+
+    ## Add object in daily requests log
+    logdf = pd.read_csv(requests_filepath)
+    tempdf = pd.DataFrame(
+        columns=['object_id', 'request_id', 'ra', 'dec', 'exposure_time', 'filter', 'mode', 'object_type', 'status'],
+        data=[[row["object_id"], row["request_id"], row["ra"], row["dec"], row["exposure_time"], filt, mode, 'fixed',
+               'ongoing']])
+    logdf = pd.concat([logdf, tempdf], ignore_index=True)
+    logdf.to_csv(requests_filepath, index=False)
+
     sys.exit(0)
 else:
     logging.error(f'get_obs: Incorrect input option, make sure --input argument is either "fritz" or "file"')
