@@ -65,7 +65,6 @@ def query_requests(session, action):
         for rq in requestlist:
             data.append([rq['id'], rq['obj_id'], rq['status'], rq['allocation_id']])
         df = pd.DataFrame(columns=['request_id','object_id','status','allocation_id'],data=data)
-        print(df)
         df = df[df['allocation_id'] == 1050].reset_index(drop=True)
 
     elif action == "expire":
