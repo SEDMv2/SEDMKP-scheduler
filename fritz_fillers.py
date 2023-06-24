@@ -41,6 +41,7 @@ def add_request_to_source(requestDict, token):
     if response.status_code == 200:
         return True
     else:
+        print(response.message)
         return False
 
 def create_default_filler_request(object_id, exposure_time, observation_choice, observation_type):
@@ -102,7 +103,7 @@ def main():
                 raise Exception('Unknown requester, not cal or fil')
             for ob_choice in ob_choices:
                 requestDict = create_default_filler_request(name, exptime, ob_choice, ob_type)
-                print(requestDict)
+                # print(requestDict)
                 if add_request_to_source(requestDict, args.token):
                     print(f'Successfully added request to source {name}')
                 else:
