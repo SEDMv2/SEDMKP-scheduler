@@ -53,7 +53,7 @@ def create_default_filler_request(object_id, exposure_time, observation_choice, 
     if observation_choice == 'IFU':
         observation_type = 'transient'
         payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
-                   'observation_type': observation_type, 'exposure_time': exposure_time,
+                   'observation_type': observation_type, 'exposure_time': float(exposure_time),
                    'observation_choice': observation_choice, 'maximum_airmass': 3.0, 'too': 'N',
                    'minimum_lunar_distance': 30}
     else:
