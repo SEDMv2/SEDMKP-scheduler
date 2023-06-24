@@ -49,17 +49,19 @@ def create_default_filler_request(object_id, exposure_time, observation_choice, 
     priority = 0
     start_date = Time.now().isot
     end_date = (Time.now() + 5*u.year).isot
-    frame_exposure_time = None
     if observation_choice == 'IFU':
         observation_type = 'transient'
+        payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
+                   'observation_type': observation_type, 'exposure_time': exposure_time,
+                   'observation_choice': observation_choice, 'maximum_airmass': 3.0, 'too': 'N'}
     else:
         if observation_type == 'variable':
             frame_exposure_time = 10.0
-    payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
-               'observation_type': observation_type, 'exposure_time': exposure_time,
-               'observation_choice': observation_choice, 'frame_exposure_time': frame_exposure_time,
-               'maximum_airmass': 3.0, 'too': 'N'}
-    return {'obj_id': object_id, 'target_group_ids': [group_id], 'allocation_id': allocation_id, 'status': 'submitted',
+        payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
+                   'observation_type': observation_type, 'exposure_time': exposure_time,
+                   'observation_choice': observation_choice, 'frame_exposure_time': frame_exposure_time,
+                   'maximum_airmass': 3.0, 'too': 'N'}
+    return {'obj_id': object_id, 'target_group_ids': [group_id], 'allocation_id': allocation_id, 'status': 'submitted',\
             'payload': payload}
 
 
@@ -100,6 +102,7 @@ def main():
                 raise Exception('Unknown requester, not cal or fil')
             for ob_choice in ob_choices:
                 requestDict = create_default_filler_request(name, exptime, ob_choice, ob_type)
+                print(requestDict)
                 if add_request_to_source(requestDict, args.token):
                     print(f'Successfully added request to source {name}')
                 else:
