@@ -56,9 +56,9 @@ def create_default_filler_request(object_id, exposure_time, observation_choice, 
                    'observation_choice': observation_choice, 'maximum_airmass': 3.0, 'too': 'N'}
     else:
         if observation_type == 'variable':
-            frame_exposure_time = 10.0
+            frame_exposure_time = 10
         payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
-                   'observation_type': observation_type, 'exposure_time': exposure_time,
+                   'observation_type': observation_type, 'exposure_time': float(exposure_time),
                    'observation_choice': observation_choice, 'frame_exposure_time': frame_exposure_time,
                    'maximum_airmass': 3.0, 'too': 'N'}
     return {'obj_id': object_id, 'target_group_ids': [group_id], 'allocation_id': allocation_id, 'status': 'submitted',\
