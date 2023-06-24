@@ -41,7 +41,7 @@ def add_request_to_source(requestDict, token):
     if response.status_code == 200:
         return True
     else:
-        print(response.message)
+        print(response.text)
         return False
 
 def create_default_filler_request(object_id, exposure_time, observation_choice, observation_type):
