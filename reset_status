@@ -19,7 +19,7 @@ def parse_commandline():
                       help="Host url for skyportal instance, by default fritz")
     parser.add_option("-p", "--queuePath", default="/home/sedm/Queue/sedmv2", help="Path where queue scripts are")
     parser.add_option("-t", "--token", help="Fritz/skyportal token, required")
-    parser.add_option("-a", "--action", choices=["expire", "reset"], help="Choose action, expire requests or reset skipped requests")
+    parser.add_option("-a", "--action", choices=["expire", "reset", "reset-filler"], help="Choose action, expire requests or reset skipped requests")
 
     opts, args = parser.parse_args()
 
@@ -27,13 +27,6 @@ def parse_commandline():
 
 def query_requests(session, action):
     instrument_id = 1078
-    # endpoint = 'instrument'
-    # url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
-    # response = session.request(method, url, headers=headers)
-    # for instrument in response.json()["data"]:
-    #     if instrument["name"] == "SEDMv2":
-    #         instrument_id = instrument["id"]
-    #         break
     method = 'GET'
     endpoint = f'followup_request'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
@@ -42,7 +35,7 @@ def query_requests(session, action):
     if action == "reset":
         params = {'status': 'ongoing', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'numPerPage':100, 'instrumentID':instrument_id}
+                  'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status ongoing')
@@ -51,10 +44,10 @@ def query_requests(session, action):
 
         params = {'status': 'Failed', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'numPerPage':100, 'instrumentID':instrument_id}
+                  'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
-            print('reset_status: action=reset, could not access queue with status ongoing')
+            print('reset_status: action=reset, could not access queue with status failed')
         else:
             requestlist = requestlist + response['data']['followup_requests']
 
@@ -64,10 +57,26 @@ def query_requests(session, action):
         df = pd.DataFrame(columns=['request_id','object_id','status','endDate'],data=data)
         df = df[df['endDate'] > Time.now()].reset_index(drop=True)
 
+    elif action == "reset-filler":
+        params = {'observationStartDate':Time.now().isot,
+                  'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
+                  'instrumentID':instrument_id}
+        response = session.request(method, url, params=params, headers=headers).json()
+        if response['status']!='success':
+            print('reset_status: action=reset, could not access queue with status failed')
+        else:
+            requestlist = requestlist + response['data']['followup_requests']
+
+        data = []
+        for rq in requestlist:
+            data.append([rq['id'], rq['obj_id'], rq['status'], rq['allocation_id']])
+        df = pd.DataFrame(columns=['request_id','object_id','status','allocation_id'],data=data)
+        df = df[(df['allocation_id'] == 1050) & (df['status'] != 'submitted')].reset_index(drop=True)
+
     elif action == "expire":
         params = {'status': 'submitted', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'numPerPage':100, 'instrumentID':instrument_id}
+                  'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status submitted')
@@ -76,7 +85,7 @@ def query_requests(session, action):
 
         params = {'status': 'ongoing', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'numPerPage':100, 'instrumentID':instrument_id}
+                  'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status ongoing')
@@ -125,6 +134,8 @@ for i in range(len(df)):
     endpoint = f'followup_request/{request_id}'
     url = urllib.parse.urljoin(opts.host, f'/api/{endpoint}')
     if opts.action == 'reset':
+        params = {'status':'submitted'}
+    elif opts.action == 'reset-filler':
         params = {'status':'submitted'}
     elif opts.action == 'expire':
         params = {'status':f'Expired {Time.now().isot}'}
