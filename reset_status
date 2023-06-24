@@ -34,7 +34,6 @@ def query_requests(session, action):
     requestlist = []
     if action == "reset":
         params = {'status': 'ongoing', 'instrumentID':instrument_id}
-        #'observationStartDate':Time.now().isot,'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,'numPerPage':100}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status ongoing')
@@ -42,13 +41,12 @@ def query_requests(session, action):
             requestlist = requestlist + response['data']['followup_requests']
 
         params = {'status': 'Failed', 'instrumentID':instrument_id}
-        #'observationStartDate':Time.now().isot,'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,'numPerPage':100}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status failed')
         else:
             requestlist = requestlist + response['data']['followup_requests']
-        # print(requestlist)
+
         data = []
         for rq in requestlist:
             data.append([rq['id'], rq['obj_id'], rq['status'], Time(rq['payload']['end_date'],format='isot')])
@@ -57,22 +55,21 @@ def query_requests(session, action):
 
     elif action == "reset-filler":
         params = {'instrumentID':instrument_id}
-        #'observationStartDate':Time.now().isot,'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,'numPerPage':100}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status failed')
         else:
             requestlist = requestlist + response['data']['followup_requests']
-        # print(requestlist)
+
         data = []
         for rq in requestlist:
             data.append([rq['id'], rq['obj_id'], rq['status'], rq['allocation_id']])
         df = pd.DataFrame(columns=['request_id','object_id','status','allocation_id'],data=data)
+        print(df)
         df = df[(df['allocation_id'] == 1050) & (df['status'] != 'submitted')].reset_index(drop=True)
 
     elif action == "expire":
         params = {'status': 'submitted', 'instrumentID':instrument_id}
-        #'observationStartDate':Time.now().isot,'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,'numPerPage':100}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status submitted')
@@ -80,18 +77,16 @@ def query_requests(session, action):
             requestlist = requestlist + response['data']['followup_requests']
 
         params = {'status': 'ongoing', 'instrumentID':instrument_id}
-        #'observationStartDate':Time.now().isot,'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,'numPerPage':100}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status ongoing')
         else:
             requestlist = requestlist + response['data']['followup_requests']
-        # print(requestlist)
+
         data = []
         for rq in requestlist:
             data.append([rq['id'], rq['obj_id'], rq['status'], Time(rq['payload']['end_date'],format='isot')])
         df = pd.DataFrame(columns=['request_id','object_id','status','endDate'],data=data)
-        print(df)
         df = df[df['endDate']<(Time.now()-TimeDelta(1,format='jd'))].reset_index(drop=True)
 
     else:
