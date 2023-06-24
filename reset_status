@@ -35,7 +35,7 @@ def query_requests(session, action):
     if action == "reset":
         params = {'status': 'ongoing', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'instrumentID':instrument_id}
+                  'numPerPage':100, 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status ongoing')
@@ -44,7 +44,7 @@ def query_requests(session, action):
 
         params = {'status': 'Failed', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'instrumentID':instrument_id}
+                  'numPerPage':100, 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status failed')
@@ -60,7 +60,7 @@ def query_requests(session, action):
     elif action == "reset-filler":
         params = {'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'instrumentID':instrument_id}
+                  'numPerPage':100, 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status failed')
@@ -76,7 +76,7 @@ def query_requests(session, action):
     elif action == "expire":
         params = {'status': 'submitted', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'instrumentID':instrument_id}
+                  'numPerPage':100, 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status submitted')
@@ -85,7 +85,7 @@ def query_requests(session, action):
 
         params = {'status': 'ongoing', 'observationStartDate':Time.now().isot,
                   'observationEndDate':(Time.now()+TimeDelta(1,format='jd')).isot,
-                  'instrumentID':instrument_id}
+                  'numPerPage':100, 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status ongoing')
