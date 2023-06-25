@@ -48,8 +48,8 @@ def create_default_filler_request(object_id, exposure_time, observation_choice, 
     group_id = 1423
     allocation_id = 1050
     priority = 0
-    start_date = Time.now().isot
-    end_date = (Time.now() + 5*u.year).isot
+    start_date = Time('2023-06-01T00:00:00',format='isot').isot
+    end_date = (start_date + 5*u.year).isot
     if observation_choice == 'IFU':
         observation_type = 'transient'
         payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
