@@ -48,18 +48,18 @@ def create_default_filler_request(object_id, exposure_time, observation_choice, 
     group_id = 1423
     allocation_id = 1050
     priority = 0
-    start_date = Time('2023-06-01T00:00:00',format='isot').isot
-    end_date = (start_date + 5*u.year).isot
+    start_date = Time('2023-06-01T00:00:00',format='isot')
+    end_date = (start_date + 5*u.year)
     if observation_choice == 'IFU':
         observation_type = 'transient'
-        payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
+        payload = {'priority': priority, 'start_date': start_date.isot, 'end_date': end_date.isot,
                    'observation_type': observation_type, 'exposure_time': float(exposure_time),
                    'observation_choice': observation_choice, 'maximum_airmass': 3.0, 'too': 'N',
                    'minimum_lunar_distance': 30}
     else:
         if observation_type == 'variable':
             frame_exposure_time = 10
-        payload = {'priority': priority, 'start_date': start_date, 'end_date': end_date,
+        payload = {'priority': priority, 'start_date': start_date.isot, 'end_date': end_date.isot,
                    'observation_type': observation_type, 'exposure_time': float(exposure_time),
                    'observation_choice': observation_choice, 'frame_exposure_time': frame_exposure_time,
                    'maximum_airmass': 3.0, 'too': 'N', 'minimum_lunar_distance': 30}
