@@ -99,7 +99,7 @@ def main():
                 ob_choices = [df.iloc[i]['observation_choice']]
             elif df.iloc[i]['requester'] == 'fil':
                 ob_type = 'variable'
-                ob_choices = ['g', 'r', 'i', 'z']
+                ob_choices = ['g', 'r']
             else:
                 raise Exception('Unknown requester, not cal or fil')
             for ob_choice in ob_choices:
