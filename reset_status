@@ -7,6 +7,7 @@ import requests
 import glob
 import pandas as pd
 from astropy.time import Time, TimeDelta
+import sys
 
 from io import StringIO
 
@@ -123,14 +124,14 @@ elif glob.glob(f'{opts.queuePath}/token.txt')!=[]:
 else:
     headers = None
     print('reset_status: Token not provided,exiting')
-    exit(1)
+    sys.exit(1)
     
 session = requests.Session()
 
 df = query_requests(session, opts.action)
 if len(df)==0:
     print('Empty dataframe')
-    exit(1)
+    sys.exit(1)
 
 for i in range(len(df)):
     row = df.iloc[i]
@@ -151,7 +152,7 @@ for i in range(len(df)):
         params = {}
         action = 'DELETE'
     else:
-        exit(1)
+        sys.exit(1)
 
     count = 0
     updated = False
