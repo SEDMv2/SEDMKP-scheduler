@@ -40,14 +40,26 @@ def query_requests(session, action):
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status ongoing')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'status': 'ongoing', 'instrumentID':instrument_id, 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         params = {'status': 'Failed', 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status failed')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'status': 'Failed', 'instrumentID':instrument_id, 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         data = []
         for rq in requestlist:
@@ -61,7 +73,13 @@ def query_requests(session, action):
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue with status date')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'instrumentID':instrument_id, 'status':f'{Time.now().isot[0:10]}', 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         data = []
         for rq in requestlist:
@@ -75,7 +93,13 @@ def query_requests(session, action):
         if response['status']!='success':
             print('reset_status: action=reset, could not access queue')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'instrumentID':instrument_id, 'status':'submitted', 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         data = []
         for rq in requestlist:
@@ -89,14 +113,26 @@ def query_requests(session, action):
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status submitted')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'status': 'submitted', 'instrumentID':instrument_id, 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         params = {'status': 'ongoing', 'instrumentID':instrument_id}
         response = session.request(method, url, params=params, headers=headers).json()
         if response['status']!='success':
             print('reset_status: action=expire, could not access queue with status ongoing')
         else:
+            tMatches = response['data']['totalMatches']
             requestlist = requestlist + response['data']['followup_requests']
+            if tMatches>100:
+                for i in range(2, int(np.ceil(tMatches/100))+1):
+                    params = {'status': 'ongoing', 'instrumentID':instrument_id, 'pageNumber':i}
+                    response = session.request(method, url, params=params, headers=headers).json()
+                    requestlist = requestlist + response['data']['followup_requests']
 
         data = []
         for rq in requestlist:
