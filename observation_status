@@ -41,6 +41,7 @@ if opts.request_id is None or opts.status is None:
     if len(args)==2:
         opts.request_id = args[1]
         opts.status = args[0]
+        logging.info(f'obs_stat: Request_id and status supplied from ROS: {opts.request_id} {opts.status}')
     else:
         logging.error('obs_stat: No request_id and status supplied, exiting')
         exit(1)
@@ -72,7 +73,7 @@ logdf.to_csv(requests_filepath, index=False)
 try:
     requestid_from_fritz = int(opts.request_id)
 except:
-    logging.error('obs_stat: request_id is a str, probably cal, fil or something else, exiting')
+    logging.error(f'obs_stat: request_id is a str, {opts.request_id} exiting')
     exit(0)
 # Query fritz using request_id arg to get rest of the request params
 updated = False

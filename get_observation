@@ -196,7 +196,7 @@ def query_schedule(session):
     response = session.request(method, url, params=params, headers=headers)
     output_string = response.content.decode('utf-8')
     output = StringIO(output_string)
-    logging.info(output_string)
+    # logging.info(output_string)
     if 'error' in output_string:
         if 'Need at least one observation to schedule' in output_string:
             logging.error('get_obs: No observations to schedule')
@@ -378,9 +378,9 @@ if opts.input == "fritz":
         params = {'status': "ongoing"}
         response = session.request('PUT', url, json=params, headers=headers).json()
         if response['status'] == "success":
-            logging.info(f'get_obs: Successfully updated request {row["request_id"]} as ongoing')
+            logging.info(f'get_obs: Successfully updated request {row["request_id"]} {row["object_id"]} as ongoing')
         else:
-            logging.error(f'obs_stat: Error in updating request {row["request_id"]} as ongoing')
+            logging.error(f'get_obs: Error in updating request {row["request_id"]} {row["object_id"]} as ongoing')
             logging.info(response['message'])
 
     ## Add object in daily requests log
