@@ -165,7 +165,7 @@ def is_standard_done(requests_filepath, which='morning'):
         return True
 
 
-def query_schedule(session):
+def query_schedule(session, priorityThreshold=0):
     method = 'GET'
     # Time range for fritz scheduler query
     start_date = Time.now()
@@ -189,6 +189,7 @@ def query_schedule(session):
               'observationEndDate': str(end_date),
               # 'includeStandards': True,
               # 'standardsOnly': True,
+                'priorityThreshold': priorityThreshold,
               'status': 'submitted',
               'output_format': 'csv'}
     target_returned = False
@@ -278,7 +279,13 @@ if opts.input == "fritz":
     doing_filler = False
     if not doing_standard:
         try:
-            target_returned, df = func_timeout(25,query_schedule,args=(session,))
+            target_returned = False
+            pthresh = 4
+            while not target_returned:
+                target_returned, df = func_timeout(20,query_schedule,args=(session, pthresh))
+                pthresh -= 1
+                if pthresh < 0:
+                    break
         except FunctionTimedOut:
             logging.error('api call timed out, call Michael!')
             target_returned = False
