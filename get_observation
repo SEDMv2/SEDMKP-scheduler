@@ -209,6 +209,10 @@ def query_schedule(session, priorityThreshold=0):
     if (len(df) == 0) or ('504 Gateway Time-out' in output_string):
         logging.error('get_obs: No observations scheduled, length of table: 0')
     else:
+        loc = Observer.at_site('Kitt Peak')
+        coords = [SkyCoord(ra=df.iloc[i,'ra'], dec=df.iloc[i,'dec'], unit=(u.hourangle, u.deg)) for i in range(len(df))]
+        df['alt'] = [loc.altaz(Time.now(), coords[i]).alt for i in range(len(df))]
+        df = df[df['alt'] > 25].reset_index(drop=True)
         logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
         target_returned = True
     return target_returned, df
