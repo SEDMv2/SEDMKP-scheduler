@@ -210,8 +210,8 @@ def query_schedule(session, priorityThreshold=0):
         logging.error('get_obs: No observations scheduled, length of table: 0')
     else:
         loc = Observer.at_site('Kitt Peak')
-        coords = [SkyCoord(ra=df.iloc[i,'ra'], dec=df.iloc[i,'dec'], unit=(u.hourangle, u.deg)) for i in range(len(df))]
-        df['alt'] = [loc.altaz(Time.now(), coords[i]).alt for i in range(len(df))]
+        coords = [SkyCoord(ra=df.loc[i,'ra'], dec=df.loc[i,'dec'], unit=(u.hourangle, u.deg)) for i in df.index]
+        df['alt'] = [loc.altaz(Time.now(), coords[i]).alt for i in range(len(coords))]
         df = df[df['alt'] > 25].reset_index(drop=True)
         logging.info(f'get_obs: Targets returned, length of table: {len(df)}')
         target_returned = True
